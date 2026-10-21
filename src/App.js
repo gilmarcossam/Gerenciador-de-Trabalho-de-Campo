@@ -4,7 +4,7 @@ import htm from "https://esm.sh/htm@3.1.1";
 
 import { CalendarioView } from "./components/CalendarioView.js";
 import { StorageService } from "./services/storageService.js";
-import { Header } from "./components/Header.js";
+import { Header } from "./components/Header.js?v=2";
 import { LoginView } from "./components/LoginView.js";
 import { HomeView } from "./components/HomeView.js";
 import { ParticularView } from "./components/ParticularView.js";
@@ -416,7 +416,7 @@ function App() {
             onOpenReportModal=${() => setShowReportModal(true)}
           />
         `}
-        
+
 ${activeTab === "calendario" && html`
           <${CalendarioView}
             mesVigenteInfo=${listasMensais[mesVigenteId]}
