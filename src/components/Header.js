@@ -52,6 +52,17 @@ export function Header({
             🗺️ Território do Dia
           </button>
 
+          <button
+            onClick=${() => setActiveTab("calendario")}
+            className=${`px-3 py-2.5 whitespace-nowrap border-b-2 ${
+              activeTab === "calendario"
+                ? "border-white text-white bg-white/10"
+                : "border-transparent text-blue-100"
+            }`}
+          >
+            📅 Lista do Mês
+          </button>
+
           ${currentUser && (isParticularOnly || temParticular || currentUser.role === "Master") && html`
             <button
               onClick=${() => setActiveTab("particular")}

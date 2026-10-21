@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "https://esm.sh/react@18.2.0
 import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
 import htm from "https://esm.sh/htm@3.1.1";
 
+import { CalendarioView } from "./components/CalendarioView.js";
 import { StorageService } from "./services/storageService.js";
 import { Header } from "./components/Header.js";
 import { LoginView } from "./components/LoginView.js";
@@ -413,6 +414,19 @@ function App() {
             particulares=${particulares}
             restricoes=${restricoes}
             onOpenReportModal=${() => setShowReportModal(true)}
+          />
+        `}
+        
+${activeTab === "calendario" && html`
+          <${CalendarioView}
+            mesVigenteInfo=${listasMensais[mesVigenteId]}
+            programacaoVigente=${programacaoVigente}
+            saidas=${saidas}
+            territorios=${territorios}
+            grupos=${grupos}
+            diaSelecionado=${diaSelecionado}
+            setDiaSelecionado=${setDiaSelecionado}
+            onIrParaTerritorioDoDia=${() => setActiveTab("home")}
           />
         `}
 
