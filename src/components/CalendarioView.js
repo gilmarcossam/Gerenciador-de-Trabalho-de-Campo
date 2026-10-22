@@ -97,10 +97,10 @@ export function CalendarioView({
 
       <!-- Dica simples de uso -->
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-3.5 py-2 text-xs text-[#1e3a5f]">
-        💡 <strong>Toque em qualquer dia do calendário</strong> para ver o endereço da saída e abrir no GPS.
+        💡 <strong>Toque em qualquer dia do calendário</strong> para abrir as informações da saída daquele dia.
       </div>
 
-      <!-- GRADE DO CALENDÁRIO EM QUADRADINHOS (7 COLUNAS: DOM A SÁB) -->
+      <!-- GRADE DO CALENDÁRIO (APENAS OS DIAS CENTRALIZADOS NOS QUADRADOS) -->
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <!-- Cabeçalho dos Dias da Semana -->
         <div className="grid grid-cols-7 bg-[#1e3a5f] text-white text-center text-[11px] sm:text-xs font-extrabold py-2.5">
@@ -116,12 +116,12 @@ export function CalendarioView({
           )}
         </div>
 
-        <!-- Quadradinhos dos Dias -->
+        <!-- Quadradinhos dos Dias (Apenas o número do dia centralizado) -->
         <div className="grid grid-cols-7 gap-px bg-slate-200 border-t border-slate-200">
           <!-- Espaços vazios antes do dia 1 para alinhar com o dia da semana correto -->
           ${Array.from({ length: espacosVaziosInicio }).map(
             (_, idx) => html`
-              <div key=${`vazio-${idx}`} className="bg-slate-50/70 min-h-[85px] sm:min-h-[110px]"></div>
+              <div key=${`vazio-${idx}`} className="bg-slate-50/70 h-14 sm:h-20"></div>
             `
           )}
 
@@ -132,88 +132,40 @@ export function CalendarioView({
             const isGrupo = turnoPrincipal?.tipo === "Grupos";
             const isDomingo = turnoPrincipal?.semana === "DOMINGO";
             const isSelecionado = d === diaSelecionado;
-            const localObj = saidas.find(s => s.id === Number(turnoPrincipal?.saidaId));
 
             return html`
               <button
                 type="button"
                 key=${d}
                 onClick=${() => abrirDia(d)}
-                className=${`text-left p-1.5 sm:p-2.5 min-h-[88px] sm:min-h-[112px] flex flex-col justify-between transition relative group ${
+                className=${`h-14 sm:h-20 flex items-center justify-center transition ${
                   isSelecionado
-                    ? "bg-amber-50/90 ring-2 ring-inset ring-[#24558f]"
+                    ? "bg-amber-50 ring-2 ring-inset ring-[#24558f]"
                     : isGrupo
-                    ? "bg-blue-50/60 hover:bg-blue-100/70"
-                    : "bg-white hover:bg-slate-50"
+                    ? "bg-blue-50/70 hover:bg-blue-100/80"
+                    : "bg-white hover:bg-slate-100"
                 }`}
               >
-                <!-- Topo do Quadradinho: Número do Dia + Horário no canto direito -->
-                <div className="flex items-center justify-between gap-1 w-full">
-                  <span
-                    className=${`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs sm:text-sm font-extrabold ${
-                      isSelecionado
-                        ? "bg-[#1e3a5f] text-white shadow"
-                        : isDomingo
-                        ? "bg-red-100 text-red-800"
-                        : "bg-slate-100 text-slate-800"
-                    }`}
-                  >
-                    ${String(d).padStart(2, "0")}
-                  </span>
-
-                  <span
-                    className=${`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded truncate ${
-                      isGrupo
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-100 text-[#1e3a5f] border border-slate-200"
-                    }`}
-                  >
-                    ${turnoPrincipal?.hora}
-                  </span>
-                </div>
-
-                <!-- Centro do Quadradinho: Nome do Local e Nome do Dirigente um embaixo do outro -->
-                <div className="my-1 space-y-0.5 w-full overflow-hidden">
-                  ${isGrupo
-                    ? html`
-                        <p className="text-[10px] sm:text-xs font-extrabold text-blue-900 leading-tight line-clamp-1">
-                          Saída em Grupos
-                        </p>
-                        <p className="text-[9px] sm:text-[11px] text-blue-700 font-semibold truncate">
-                          Ver grupos
-                        </p>
-                      `
-                    : html`
-                        <p
-                          className="text-[10px] sm:text-xs font-extrabold text-[#1e3a5f] leading-tight line-clamp-1"
-                          title=${localObj?.nome || ""}
-                        >
-                          ${localObj?.nome || "Saída"}
-                        </p>
-                        <p
-                          className="text-[9px] sm:text-[11px] text-slate-600 font-semibold truncate"
-                          title=${turnoPrincipal?.dirigente || ""}
-                        >
-                          ${turnoPrincipal?.dirigente}
-                        </p>
-                      `}
-                </div>
-
-                <!-- Rodapé discreto apenas se houver mais de 1 turno no mesmo dia -->
-                <div className="w-full flex items-center justify-end">
-                  ${listaTurnos.length > 1 && html`
-                    <span className="text-[9px] font-extrabold bg-purple-100 text-purple-900 px-1.5 py-0.5 rounded">
-                      +${listaTurnos.length - 1} saída(s)
-                    </span>
-                  `}
-                </div>
+                <span
+                  className=${`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-sm sm:text-base font-extrabold transition ${
+                    isSelecionado
+                      ? "bg-[#1e3a5f] text-white shadow-md"
+                      : isGrupo
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : isDomingo
+                      ? "bg-red-100 text-red-800"
+                      : "bg-slate-100 text-[#1e3a5f]"
+                  }`}
+                >
+                  ${String(d).padStart(2, "0")}
+                </span>
               </button>
             `;
           })}
         </div>
       </div>
 
-      <!-- Card do Arranjo de Cartas via Zoom posicionado em destaque abaixo do calendário -->
+      <!-- Card do Arranjo de Cartas via Zoom posicionado abaixo do calendário -->
       <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 text-xs">
         <div className="space-y-1">
           <span className="text-[10px] uppercase font-extrabold bg-indigo-100 text-indigo-900 px-2.5 py-0.5 rounded">
@@ -252,7 +204,7 @@ export function CalendarioView({
         </div>
       </div>
 
-      <!-- MODAL POPUP ENXUTO DE DETALHES DO DIA CLICADO -->
+      <!-- MODAL POPUP COM AS INFORMAÇÕES DA SAÍDA DO DIA CLICADO -->
       ${diaDetalheModal && html`
         <div
           onClick=${() => setDiaDetalheModal(null)}
