@@ -18,6 +18,7 @@ export function HomeView({
   grupos,
   particulares,
   restricoes,
+  zoomConfig,
   onOpenReportModal
 }) {
   const [zoomImgUrl, setZoomImgUrl] = useState(null);
@@ -212,6 +213,42 @@ export function HomeView({
           `}
         </div>
       `}
+<!-- CARD DE CAMPO NO ZOOM (Aparece automaticamente na Tela Inicial nos dias configurados pelo Admin) -->
+      ${(zoomConfig?.dias || [])
+        .filter(z => Number(z.dia) === Number(diaSelecionado))
+        .map(
+          zDia => html`
+            <div
+              key=${zDia.id}
+              className="bg-indigo-50 border-2 border-indigo-300 rounded-xl p-3.5 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="bg-indigo-700 text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded">
+                    💻 Campo via Zoom Hoje (Dia ${String(zDia.dia).padStart(2, "0")})
+                  </span>
+                  <span className="text-xs font-extrabold text-indigo-950">
+                    🕒 Horário: ${zDia.horario || zoomConfig?.horarioPadrao || "09:30"}
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-[#1e3a5f]">
+                  👤 Dirigente do Zoom: <span className="text-indigo-900 font-extrabold">${zDia.dirigente}</span>
+                </p>
+              </div>
+
+              ${(zDia.link || zoomConfig?.linkPadrao) && html`
+                <a
+                  href=${zDia.link || zoomConfig?.linkPadrao}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs shadow transition"
+                >
+                  🔗 Entrar na Sala do Zoom
+                </a>
+              `}
+            </div>
+          `
+        )}
 
       <!-- Alerta quando o Local da Saída fica em um Mapa diferente do Território trabalhado -->
       ${!temSaidaProvisoria &&

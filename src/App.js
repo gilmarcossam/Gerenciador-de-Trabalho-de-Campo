@@ -2,11 +2,11 @@ import React, { useState, useMemo, useEffect } from "https://esm.sh/react@18.2.0
 import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
 import htm from "https://esm.sh/htm@3.1.1";
 
-import { CalendarioView } from "./components/CalendarioView.js";
 import { StorageService } from "./services/storageService.js";
-import { Header } from "./components/Header.js?v=2";
+import { Header } from "./components/Header.js";
 import { LoginView } from "./components/LoginView.js";
 import { HomeView } from "./components/HomeView.js";
+import { CalendarioView } from "./components/CalendarioView.js";
 import { ParticularView } from "./components/ParticularView.js";
 import { DirigenteView } from "./components/DirigenteView.js";
 import { DashboardView } from "./components/DashboardView.js";
@@ -27,6 +27,13 @@ function App() {
   const [mesSelecionadoAdmin, setMesSelecionadoAdmin] = useState(initialState.mesVigenteId);
   const [s13Data, setS13Data] = useState(initialState.s13Data);
   const [particulares, setParticulares] = useState(initialState.particulares || []);
+  const [zoomConfig, setZoomConfig] = useState(
+    initialState.zoomConfig || {
+      linkPadrao: "https://zoom.us/j/1234567890",
+      horarioPadrao: "09:30",
+      dias: []
+    }
+  );
 
   const [currentUser, setCurrentUser] = useState(usuarios[0]);
   const [isVisitor, setIsVisitor] = useState(false);
@@ -57,7 +64,7 @@ function App() {
   const [obsRelatorio, setObsRelatorio] = useState("");
   const [novasRestricoes, setNovasRestricoes] = useState([]);
 
-  // Persistência completa no LocalStorage (incluindo Restrições!)
+  // Persistência completa no LocalStorage (incluindo Restrições e Zoom!)
   useEffect(() => {
     StorageService.save(StorageService.KEYS.USERS, usuarios);
     StorageService.save(StorageService.KEYS.TERRITORIOS, territorios);
@@ -68,6 +75,7 @@ function App() {
     StorageService.save(StorageService.KEYS.S13, s13Data);
     StorageService.save(StorageService.KEYS.MES_VIGENTE, mesVigenteId);
     StorageService.save(StorageService.KEYS.PARTICULARES, particulares);
+    StorageService.save(StorageService.KEYS.ZOOM, zoomConfig);
   }, [
     usuarios,
     territorios,
@@ -77,7 +85,8 @@ function App() {
     listasMensais,
     s13Data,
     mesVigenteId,
-    particulares
+    particulares,
+    zoomConfig
   ]);
 
   const programacaoVigente = listasMensais[mesVigenteId]?.dias || [];
@@ -413,11 +422,12 @@ function App() {
             grupos=${grupos}
             particulares=${particulares}
             restricoes=${restricoes}
+            zoomConfig=${zoomConfig}
             onOpenReportModal=${() => setShowReportModal(true)}
           />
         `}
 
-${activeTab === "calendario" && html`
+        ${activeTab === "calendario" && html`
           <${CalendarioView}
             mesVigenteInfo=${listasMensais[mesVigenteId]}
             programacaoVigente=${programacaoVigente}
@@ -426,6 +436,7 @@ ${activeTab === "calendario" && html`
             grupos=${grupos}
             diaSelecionado=${diaSelecionado}
             setDiaSelecionado=${setDiaSelecionado}
+            zoomConfig=${zoomConfig}
             onIrParaTerritorioDoDia=${() => setActiveTab("home")}
           />
         `}
@@ -496,6 +507,8 @@ ${activeTab === "calendario" && html`
             setS13Data=${setS13Data}
             campanha=${campanha}
             setCampanha=${setCampanha}
+            zoomConfig=${zoomConfig}
+            setZoomConfig=${setZoomConfig}
             onOpenNovoMesModal=${() => setShowNovoMesModal(true)}
           />
         `}
@@ -592,7 +605,8 @@ ${activeTab === "calendario" && html`
                       </span>
                       <div className="grid grid-cols-1 gap-2">
                         ${territorioAtual.imagens.map((url, i) => {
-                          const idMatch = url.match(/id=([^&]+)/);
+                          const isDataUrl = url.startsWith("data:image");
+                          const idMatch = !isDataUrl && url.match(/id=([^&]+)/);
                           const thumbUrl = idMatch
                             ? `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1000`
                             : url;
@@ -665,7 +679,8 @@ ${activeTab === "calendario" && html`
                                     : "bg-white text-slate-800 border-slate-300 hover:bg-slate-100"
                                 }`}
                               >
-                                ${q}${isSemMorador && html`
+                                ${q}
+                                ${isSemMorador && html`
                                   <span className="block text-[8px] text-slate-500 leading-none truncate px-0.5">
                                     ${motivoSemMorador}
                                   </span>

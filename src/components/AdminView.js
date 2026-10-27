@@ -29,6 +29,8 @@ export function AdminView({
   setS13Data,
   campanha,
   setCampanha,
+  zoomConfig,
+  setZoomConfig,
   onOpenNovoMesModal
 }) {
   const [adminSection, setAdminSection] = useState("programacao");
@@ -90,6 +92,14 @@ export function AdminView({
     chave: "",
     role: "Particular",
     privilegio: "Publicador"
+  });
+
+// Estado para adicionar um novo dia de Campo no Zoom
+  const [novoDiaZoom, setNovoDiaZoom] = useState({
+    dia: "1",
+    horario: zoomConfig?.horarioPadrao || "09:30",
+    dirigente: usuarios[0]?.nome || "Antônio Xavier",
+    link: zoomConfig?.linkPadrao || "https://zoom.us/j/1234567890"
   });
 
   const programacaoAdmin = listasMensais[mesSelecionadoAdmin]?.dias || [];
@@ -2095,87 +2105,318 @@ export function AdminView({
         </div>
       `}
 
-      <!-- SEÇÃO 7: CAMPANHAS E USUÁRIOS -->
+      <!-- SEÇÃO 7: CAMPANHAS, CAMPO NO ZOOM E USUÁRIOS -->
       ${adminSection === "campanha" && html`
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl shadow-sm border p-4 space-y-3 text-xs">
-            <h3 className="font-bold text-sm text-[#1e3a5f]">Gerenciar Campanha Especial</h3>
-            <label className="flex items-center gap-2 font-bold">
-              <input
-                type="checkbox"
-                checked=${campanha.ativa}
-                onChange=${e => setCampanha({ ...campanha, ativa: e.target.checked })}
-              />
-              Exibir Aviso de Campanha na Tela Inicial e Dashboard
-            </label>
-            <input
-              type="text"
-              value=${campanha.nome}
-              onChange=${e => setCampanha({ ...campanha, nome: e.target.value })}
-              className="w-full border rounded p-2"
-              placeholder="Nome da Campanha"
-            />
-            <textarea
-              value=${campanha.observacao}
-              onChange=${e => setCampanha({ ...campanha, observacao: e.target.value })}
-              className="w-full border rounded p-2"
-              rows="2"
-            ></textarea>
-          </div>
+        <div className="space-y-4">
+          <!-- GERENCIADOR DE CAMPO VIA ZOOM (EXCLUSIVO ADMIN MASTER / ADMIN) -->
+          <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-4 text-xs">
+            <div className="border-b pb-3 flex flex-wrap justify-between items-center gap-2">
+              <div>
+                <span className="text-[10px] uppercase font-extrabold bg-indigo-100 text-indigo-900 px-2.5 py-0.5 rounded">
+                  Arranjo de Cartas / Campo Online
+                </span>
+                <h3 className="font-bold text-base text-[#1e3a5f] mt-1">
+                  💻 Configurar Dias de Campo no Zoom (Tela Inicial & Calendário)
+                </h3>
+                <p className="text-slate-500">
+                  Configure o link da sala, o horário e quais dias do mês terão saída pelo Zoom. Nos dias cadastrados abaixo, o card do Zoom aparecerá automaticamente na Tela Inicial!
+                </p>
+              </div>
+            </div>
 
-          <div className="bg-white rounded-xl shadow-sm border p-4 space-y-3 text-xs">
-            <h3 className="font-bold text-sm text-[#1e3a5f]">
-              Cadastrar Usuário (Master, Dirigente ou Território Particular)
-            </h3>
-            <form onSubmit=${handleCadastrarUsuario} className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                placeholder="Nome do Irmão"
-                value=${novoUsuario.nome}
-                onChange=${e => setNovoUsuario({ ...novoUsuario, nome: e.target.value })}
-                className="border rounded p-2 col-span-2"
-                required
-              />
-              <input
-                type="text"
-                placeholder="Chave (Ex: PART20)"
-                value=${novoUsuario.chave}
-                onChange=${e => setNovoUsuario({ ...novoUsuario, chave: e.target.value })}
-                className="border rounded p-2 font-mono uppercase"
-                required
-              />
-              <select
-                value=${novoUsuario.role}
-                onChange=${e => setNovoUsuario({ ...novoUsuario, role: e.target.value })}
-                className="border rounded p-2 font-bold"
-              >
-                <option value="Particular">Particular (Só Tela Inicial + Particular)</option>
-                <option value="Dirigente">Dirigente</option>
-                <option value="Ancião">Ancião</option>
-                <option value="Superintendente">Superintendente</option>
-                <option value="Master">Master</option>
-              </select>
-              <button
-                type="submit"
-                className="col-span-2 bg-emerald-600 text-white font-bold py-2 rounded"
-              >
-                + Cadastrar Usuário
-              </button>
+            <!-- Configuração Padrão da Sala do Zoom -->
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-indigo-50/60 border border-indigo-200 p-3.5 rounded-xl items-end">
+              <div className="sm:col-span-2">
+                <label className="font-bold text-indigo-950 block mb-1">
+                  🔗 Link Padrão da Sala do Zoom:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: https://zoom.us/j/1234567890"
+                  value=${zoomConfig?.linkPadrao || ""}
+                  onChange=${e => {
+                    const novoLink = e.target.value;
+                    setZoomConfig(prev => ({
+                      ...prev,
+                      linkPadrao: novoLink,
+                      dias: (prev?.dias || []).map(d => ({ ...d, link: novoLink }))
+                    }));
+                  }}
+                  className="w-full border border-indigo-300 rounded-lg px-2.5 py-2 bg-white font-semibold"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-indigo-950 block mb-1">
+                  🕒 Horário Padrão do Zoom:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: 09:30"
+                  value=${zoomConfig?.horarioPadrao || ""}
+                  onChange=${e => {
+                    const novoHorario = e.target.value;
+                    setZoomConfig(prev => ({
+                      ...prev,
+                      horarioPadrao: novoHorario
+                    }));
+                  }}
+                  className="w-full border border-indigo-300 rounded-lg px-2.5 py-2 bg-white font-bold"
+                />
+              </div>
+            </div>
+
+            <!-- Formulário para Adicionar um Dia de Campo no Zoom -->
+            <form
+              onSubmit=${e => {
+                e.preventDefault();
+                const novoItem = {
+                  id: Date.now(),
+                  dia: Number(novoDiaZoom.dia),
+                  horario: novoDiaZoom.horario.trim() || zoomConfig?.horarioPadrao || "09:30",
+                  dirigente: novoDiaZoom.dirigente,
+                  link: novoDiaZoom.link.trim() || zoomConfig?.linkPadrao || ""
+                };
+                setZoomConfig(prev => ({
+                  ...prev,
+                  dias: [...(prev?.dias || []), novoItem].sort((a, b) => a.dia - b.dia)
+                }));
+              }}
+              className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 bg-slate-50 p-3.5 rounded-xl border items-end"
+            >
+              <div className="sm:col-span-2">
+                <label className="font-bold text-slate-700 block mb-1">Dia do Mês:</label>
+                <select
+                  value=${novoDiaZoom.dia}
+                  onChange=${e => setNovoDiaZoom({ ...novoDiaZoom, dia: e.target.value })}
+                  className="w-full border rounded-lg px-2 py-2 bg-white font-bold text-[#1e3a5f]"
+                >
+                  ${Array.from({ length: 31 }, (_, i) => i + 1).map(
+                    d => html`
+                      <option key=${d} value=${d}>
+                        Dia ${String(d).padStart(2, "0")}
+                      </option>
+                    `
+                  )}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="font-bold text-slate-700 block mb-1">Horário:</label>
+                <input
+                  type="text"
+                  placeholder="09:30"
+                  value=${novoDiaZoom.horario}
+                  onChange=${e => setNovoDiaZoom({ ...novoDiaZoom, horario: e.target.value })}
+                  className="w-full border rounded-lg px-2.5 py-2 bg-white font-bold"
+                  required
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="font-bold text-slate-700 block mb-1">Dirigente do Zoom:</label>
+                <select
+                  value=${novoDiaZoom.dirigente}
+                  onChange=${e => setNovoDiaZoom({ ...novoDiaZoom, dirigente: e.target.value })}
+                  className="w-full border rounded-lg px-2.5 py-2 bg-white font-semibold"
+                >
+                  ${usuarios
+                    .filter(u => u.role !== "Particular")
+                    .map(u => html`<option key=${u.id} value=${u.nome}>${u.nome}</option>`)}
+                </select>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="font-bold text-slate-700 block mb-1">Link da Sala:</label>
+                <input
+                  type="text"
+                  placeholder="https://zoom.us/j/..."
+                  value=${novoDiaZoom.link}
+                  onChange=${e => setNovoDiaZoom({ ...novoDiaZoom, link: e.target.value })}
+                  className="w-full border rounded-lg px-2.5 py-2 bg-white"
+                  required
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg shadow-sm"
+                >
+                  + Adicionar Dia
+                </button>
+              </div>
             </form>
 
-            <div className="max-h-48 overflow-y-auto space-y-1 pt-2 border-t">
-              ${usuarios.map(
-                u => html`
-                  <div key=${u.id} className="border rounded p-2 flex justify-between items-center">
-                    <span>
-                      <strong>${u.nome}</strong> (${u.role})
-                    </span>
-                    <span className="font-mono bg-slate-100 px-2 py-0.5 rounded font-bold text-blue-900">
-                      ${u.chave}
-                    </span>
-                  </div>
-                `
-              )}
+            <!-- Tabela Editável dos Dias de Campo no Zoom Cadastrados -->
+            <div className="overflow-x-auto border rounded-xl">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-700 border-b">
+                    <th className="p-2.5">Dia</th>
+                    <th className="p-2.5">Horário</th>
+                    <th className="p-2.5">Dirigente Designado</th>
+                    <th className="p-2.5">Link da Sala do Zoom</th>
+                    <th className="p-2.5">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${(zoomConfig?.dias || []).map(item => html`
+                    <tr key=${item.id} className="border-b hover:bg-slate-50">
+                      <td className="p-2 font-extrabold text-indigo-900">
+                        Dia ${String(item.dia).padStart(2, "0")}
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          value=${item.horario}
+                          onChange=${e => {
+                            const val = e.target.value;
+                            setZoomConfig(prev => ({
+                              ...prev,
+                              dias: prev.dias.map(d =>
+                                d.id === item.id ? { ...d, horario: val } : d
+                              )
+                            }));
+                          }}
+                          className="border rounded px-2 py-1 w-20 font-bold"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <select
+                          value=${item.dirigente}
+                          onChange=${e => {
+                            const val = e.target.value;
+                            setZoomConfig(prev => ({
+                              ...prev,
+                              dias: prev.dias.map(d =>
+                                d.id === item.id ? { ...d, dirigente: val } : d
+                              )
+                            }));
+                          }}
+                          className="border rounded px-2 py-1 font-semibold text-[#1e3a5f]"
+                        >
+                          ${usuarios
+                            .filter(u => u.role !== "Particular")
+                            .map(u => html`<option key=${u.id} value=${u.nome}>${u.nome}</option>`)}
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          value=${item.link}
+                          onChange=${e => {
+                            const val = e.target.value;
+                            setZoomConfig(prev => ({
+                              ...prev,
+                              dias: prev.dias.map(d =>
+                                d.id === item.id ? { ...d, link: val } : d
+                              )
+                            }));
+                          }}
+                          className="border rounded px-2 py-1 w-full min-w-[200px]"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <button
+                          type="button"
+                          onClick=${() =>
+                            setZoomConfig(prev => ({
+                              ...prev,
+                              dias: prev.dias.filter(d => d.id !== item.id)
+                            }))}
+                          className="text-red-600 hover:text-red-800 font-bold"
+                        >
+                          Remover ✕
+                        </button>
+                      </td>
+                    </tr>
+                  `)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- CAMPANHAS E USUÁRIOS (MANTIDOS INTEGRALMENTE) -->
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl shadow-sm border p-4 space-y-3 text-xs">
+              <h3 className="font-bold text-sm text-[#1e3a5f]">Gerenciar Campanha Especial</h3>
+              <label className="flex items-center gap-2 font-bold">
+                <input
+                  type="checkbox"
+                  checked=${campanha.ativa}
+                  onChange=${e => setCampanha({ ...campanha, ativa: e.target.checked })}
+                />
+                Exibir Aviso de Campanha na Tela Inicial e Dashboard
+              </label>
+              <input
+                type="text"
+                value=${campanha.nome}
+                onChange=${e => setCampanha({ ...campanha, nome: e.target.value })}
+                className="w-full border rounded p-2"
+                placeholder="Nome da Campanha"
+              />
+              <textarea
+                value=${campanha.observacao}
+                onChange=${e => setCampanha({ ...campanha, observacao: e.target.value })}
+                className="w-full border rounded p-2"
+                rows="2"
+              ></textarea>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border p-4 space-y-3 text-xs">
+              <h3 className="font-bold text-sm text-[#1e3a5f]">
+                Cadastrar Usuário (Master, Dirigente ou Território Particular)
+              </h3>
+              <form onSubmit=${handleCadastrarUsuario} className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Nome do Irmão"
+                  value=${novoUsuario.nome}
+                  onChange=${e => setNovoUsuario({ ...novoUsuario, nome: e.target.value })}
+                  className="border rounded p-2 col-span-2"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Chave (Ex: PART20)"
+                  value=${novoUsuario.chave}
+                  onChange=${e => setNovoUsuario({ ...novoUsuario, chave: e.target.value })}
+                  className="border rounded p-2 font-mono uppercase"
+                  required
+                />
+                <select
+                  value=${novoUsuario.role}
+                  onChange=${e => setNovoUsuario({ ...novoUsuario, role: e.target.value })}
+                  className="border rounded p-2 font-bold"
+                >
+                  <option value="Particular">Particular (Só Tela Inicial + Particular)</option>
+                  <option value="Dirigente">Dirigente</option>
+                  <option value="Ancião">Ancião</option>
+                  <option value="Superintendente">Superintendente</option>
+                  <option value="Master">Master</option>
+                </select>
+                <button
+                  type="submit"
+                  className="col-span-2 bg-emerald-600 text-white font-bold py-2 rounded"
+                >
+                  + Cadastrar Usuário
+                </button>
+              </form>
+
+              <div className="max-h-48 overflow-y-auto space-y-1 pt-2 border-t">
+                ${usuarios.map(
+                  u => html`
+                    <div key=${u.id} className="border rounded p-2 flex justify-between items-center">
+                      <span>
+                        <strong>${u.nome}</strong> (${u.role})
+                      </span>
+                      <span className="font-mono bg-slate-100 px-2 py-0.5 rounded font-bold text-blue-900">
+                        ${u.chave}
+                      </span>
+                    </div>
+                  `
+                )}
+              </div>
             </div>
           </div>
         </div>
