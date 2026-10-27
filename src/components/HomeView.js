@@ -73,21 +73,18 @@ export function HomeView({
             Dia de ${mesVigenteInfo?.mesNome}:
           </span>
           <select
-            value=${diaSelecionado}
-            onChange=${e => setDiaSelecionado(Number(e.target.value))}
-            className="border rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#1e3a5f] bg-slate-50"
-          >
-            ${Array.from(new Set(programacaoVigente.map(p => p.dia))).map(d => {
-              const info = programacaoVigente.find(p => p.dia === d);
-              return html`
-                <option key=${d} value=${d}>
-                  Dia ${String(d).padStart(2, "0")} (${info.semana}) -${
-                    info.tipo === "Grupos" ? "GRUPOS" : `Mapa ${info.mapa}`
-                  }
-                </option>
-              `;
-            })}
-          </select>
+  value=${diaSelecionado}
+  onChange=${e => setDiaSelecionado(Number(e.target.value))}
+  className="border rounded-lg px-3 py-2 font-bold text-[#1e3a5f] bg-white text-xs sm:text-sm"
+>
+  ${programacaoVigente.map(
+    p => html`
+      <option key=${p.id} value=${p.dia}>
+        Dia ${String(p.dia).padStart(2, "0")} - ${p.semana}
+      </option>
+    `
+  )}
+</select>
         </div>
         <div className="flex gap-1.5 text-xs">
           <button

@@ -13,6 +13,7 @@ export function ParticularView({
   onAdicionarCasaRestrita
 }) {
   const [zoomImgUrl, setZoomImgUrl] = useState(null);
+  const [zoomScale, setZoomScale] = useState(1);
   const [datasTermino, setDatasTermino] = useState({});
   const [obsTermino, setObsTermino] = useState({});
   const [novaRestricaoForm, setNovaRestricaoForm] = useState({});
@@ -34,7 +35,7 @@ export function ParticularView({
             🏠 Meu Território Particular
           </h2>
           <p className="text-xs text-slate-600">
-            Quadras reservadas para o seu trabalho pessoal. Ao concluir uma quadra, informe a data de término abaixo.
+            Confira primeiro as casas restritas abaixo antes de trabalhar nas suas quadras reservadas.
           </p>
         </div>
       </div>
@@ -48,7 +49,8 @@ export function ParticularView({
         : meusParticulares.map(item => {
             const tMapa = territorios.find(t => t.numero === item.mapa) || territorios[0];
             const imgUrl = item.imagemUrl || tMapa.imagens[0];
-            const idMatch = imgUrl?.match(/id=([^&]+)/);
+            const isDataUrl = imgUrl?.startsWith("data:image");
+            const idMatch = !isDataUrl && imgUrl?.match(/id=([^&]+)/);
             const thumbUrl = idMatch
               ? `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1200`
               : imgUrl;
@@ -60,6 +62,7 @@ export function ParticularView({
                 key=${item.id}
                 className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-4"
               >
+                <!-- 1. Cabeçalho do Território Particular e Botão GPS -->
                 <div className="flex flex-wrap justify-between items-start gap-3 border-b pb-3.5">
                   <div className="space-y-1.5">
                     <span className="text-xs font-bold text-purple-700 uppercase block">
@@ -92,7 +95,94 @@ export function ParticularView({
                   </div>
                 </div>
 
-                <!-- Lista de Quadras Designadas -->
+                <!-- 2. CASAS RESTRITAS LOGO NO INÍCIO (Antes de informar as quadras feitas!) -->
+                <div className="bg-red-50 border-2 border-red-200 p-3.5 rounded-xl text-xs space-y-3 shadow-sm">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="font-extrabold text-sm text-red-900 block">
+                        🛑 Atenção — Casas Restritas (Não Bater) no Mapa ${item.mapa}:
+                      </span>
+                      <span className="bg-red-200 text-red-900 font-extrabold px-2 py-0.5 rounded text-[10px] uppercase">
+                        Verifique antes de iniciar
+                      </span>
+                    </div>
+                    ${restMapa.length === 0
+                      ? html`
+                          <p className="text-slate-600 font-medium">
+                            ✅ Nenhuma casa restrita cadastrada para este mapa até o momento.
+                          </p>
+                        `
+                      : html`
+                          <ul className="space-y-1 text-red-900 font-bold pt-1">
+                            ${restMapa.map(
+                              r => html`
+                                <li key=${r.id} className="bg-white/80 border border-red-200 rounded-lg px-2.5 py-1.5 flex items-center justify-between">
+                                  <span>📍 ${r.rua}, Nº ${r.numero}</span>
+                                  <span className="text-[10px] text-red-700 font-semibold">
+                                    Registrada em ${r.data}
+                                  </span>
+                                </li>
+                              `
+                            )}
+                          </ul>
+                        `}
+                  </div>
+
+                  <!-- Formulário para o irmão cadastrar uma nova restrição -->
+                  <form
+                    onSubmit=${e => {
+                      e.preventDefault();
+                      if (!formRest.rua || !formRest.numero) return;
+                      onAdicionarCasaRestrita(item.mapa, formRest.rua, formRest.numero);
+                      setNovaRestricaoForm({
+                        ...novaRestricaoForm,
+                        [item.id]: { rua: "", numero: "" }
+                      });
+                    }}
+                    className="border-t border-red-200 pt-2.5 space-y-2"
+                  >
+                    <span className="font-bold text-red-900 block">
+                      + Algum morador pediu para não bater? Registre abaixo:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nome da Rua e Quadra (Ex: Rua São Pedro - Qd 8)"
+                        value=${formRest.rua}
+                        onChange=${e =>
+                          setNovaRestricaoForm({
+                            ...novaRestricaoForm,
+                            [item.id]: { ...formRest, rua: e.target.value }
+                          })}
+                        className="border border-red-300 rounded-lg px-2.5 py-1.5 flex-1 bg-white"
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Nº da Casa"
+                        value=${formRest.numero}
+                        onChange=${e =>
+                          setNovaRestricaoForm({
+                            ...novaRestricaoForm,
+                            [item.id]: {
+                              ...formRest,
+                              numero: e.target.value.replace(/\D/g, "")
+                            }
+                          })}
+                        className="border border-red-300 rounded-lg px-2.5 py-1.5 w-28 bg-white font-bold"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm"
+                      >
+                        + Registrar Restrição
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <!-- 3. Lista de Quadras Designadas (Para informar término) -->
                 <div className="space-y-2.5">
                   <h4 className="text-xs sm:text-sm font-extrabold uppercase text-[#1e3a5f]">
                     📋 Minhas Quadras Designadas (${item.quadras.length})
@@ -194,115 +284,88 @@ export function ParticularView({
                   </div>
                 </div>
 
-                <!-- Imagem do Mapa (Sem link externo, abre direto no Popup de Zoom) -->
+                <!-- 4. Imagem do Mapa (Abre no Popup de Zoom) -->
                 <div className="bg-slate-50 border rounded-xl p-3 space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold text-[#1e3a5f] uppercase">
                       🗺️ Imagem do Mapa ${item.mapa}
                     </span>
                     <span className="text-[11px] font-semibold text-blue-700">
-                      🔍 Toque na imagem para ampliar
+                      🔍 Toque na imagem para abrir e dar zoom
                     </span>
                   </div>
                   <img
                     src=${thumbUrl}
                     alt=${`Mapa ${item.mapa}`}
-                    onClick=${() => setZoomImgUrl(thumbUrl)}
+                    onClick=${() => {
+                      setZoomScale(1);
+                      setZoomImgUrl(thumbUrl);
+                    }}
                     className="w-full max-h-96 object-contain bg-white rounded border cursor-pointer hover:border-blue-400 transition"
                   />
-                </div>
-
-                <!-- Casas Restritas do Mapa + Campo para Adicionar Nova Restrição -->
-                <div className="bg-red-50 border border-red-200 p-3.5 rounded-xl text-xs space-y-3">
-                  <div>
-                    <span className="font-bold text-red-800 block mb-1">
-                      🛑 Casas Restritas (Não Bater) - Mapa ${item.mapa}:
-                    </span>
-                    ${restMapa.length === 0
-                      ? html`<p className="text-slate-600">Nenhuma casa restrita cadastrada para este mapa.</p>`
-                      : html`
-                          <ul className="space-y-1 text-red-900 font-semibold">
-                            ${restMapa.map(
-                              r => html`
-                                <li key=${r.id}>
-                                  📍 ${r.rua}, Nº ${r.numero} <span className="text-[10px]">(${r.data})</span>
-                                </li>
-                              `
-                            )}
-                          </ul>
-                        `}
-                  </div>
-
-                  <!-- Formulário para o irmão cadastrar uma nova restrição (Ficará salva para os Dirigentes!) -->
-                  <form
-                    onSubmit=${e => {
-                      e.preventDefault();
-                      if (!formRest.rua || !formRest.numero) return;
-                      onAdicionarCasaRestrita(item.mapa, formRest.rua, formRest.numero);
-                      setNovaRestricaoForm({
-                        ...novaRestricaoForm,
-                        [item.id]: { rua: "", numero: "" }
-                      });
-                    }}
-                    className="border-t border-red-200 pt-2.5 space-y-2"
-                  >
-                    <span className="font-bold text-red-900 block">
-                      + Informar nova Casa Restrita encontrada nas suas quadras:
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      <input
-                        type="text"
-                        placeholder="Nome da Rua e Quadra (Ex: Rua São Pedro - Qd 8)"
-                        value=${formRest.rua}
-                        onChange=${e =>
-                          setNovaRestricaoForm({
-                            ...novaRestricaoForm,
-                            [item.id]: { ...formRest, rua: e.target.value }
-                          })}
-                        className="border border-red-300 rounded-lg px-2.5 py-1.5 flex-1 bg-white"
-                        required
-                      />
-                      <input
-                        type="text"
-                        placeholder="Nº da Casa"
-                        value=${formRest.numero}
-                        onChange=${e =>
-                          setNovaRestricaoForm({
-                            ...novaRestricaoForm,
-                            [item.id]: {
-                              ...formRest,
-                              numero: e.target.value.replace(/\D/g, "")
-                            }
-                          })}
-                        className="border border-red-300 rounded-lg px-2.5 py-1.5 w-28 bg-white font-bold"
-                        required
-                      />
-                      <button
-                        type="submit"
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg"
-                      >
-                        + Registrar Restrição
-                      </button>
-                    </div>
-                  </form>
                 </div>
               </div>
             `;
           })}
 
+      <!-- Modal Popup de Zoom da Foto do Mapa -->
       ${zoomImgUrl && html`
         <div
           onClick=${() => setZoomImgUrl(null)}
-          className="fixed inset-0 bg-black/80 flex items-center justify-center p-3 z-50"
+          className="fixed inset-0 bg-black/85 flex items-center justify-center p-2 sm:p-4 z-50"
         >
-          <div className="max-w-4xl w-full bg-white rounded-xl overflow-hidden shadow-2xl">
-            <div className="p-3 bg-[#1e3a5f] text-white flex justify-between items-center text-xs font-bold">
-              <span>Mapa Ampliado</span>
-              <button onClick=${() => setZoomImgUrl(null)} className="bg-red-600 px-2.5 py-1 rounded">
-                Fechar ✕
-              </button>
+          <div
+            onClick=${e => e.stopPropagation()}
+            className="max-w-5xl w-full bg-white rounded-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+          >
+            <div className="p-3 bg-[#1e3a5f] text-white flex flex-wrap justify-between items-center gap-2 text-xs font-bold">
+              <span>🗺️ Visualização do Mapa</span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick=${() => setZoomScale(s => Math.max(1, Number((s - 0.5).toFixed(1))))}
+                  className="bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded text-white font-extrabold"
+                >
+                  🔍 -
+                </button>
+                <button
+                  type="button"
+                  onClick=${() => setZoomScale(1)}
+                  className="bg-white/15 hover:bg-white/25 px-2 py-1 rounded text-white"
+                >
+                  ${Math.round(zoomScale * 100)}%
+                </button>
+                <button
+                  type="button"
+                  onClick=${() => setZoomScale(s => Math.min(3, Number((s + 0.5).toFixed(1))))}
+                  className="bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded text-white font-extrabold"
+                >
+                  🔍 +
+                </button>
+                <button
+                  type="button"
+                  onClick=${() => setZoomImgUrl(null)}
+                  className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded ml-2"
+                >
+                  Fechar ✕
+                </button>
+              </div>
             </div>
-            <img src=${zoomImgUrl} alt="Mapa Ampliado" className="w-full max-h-[82vh] object-contain" />
+
+            <div className="overflow-auto bg-slate-900/90 flex-1 flex items-center justify-center p-2">
+              <img
+                src=${zoomImgUrl}
+                alt="Mapa Ampliado"
+                onClick=${() => setZoomScale(s => (s >= 2.5 ? 1 : Number((s + 0.75).toFixed(2))))}
+                style=${{
+                  transform: `scale(${zoomScale})`,
+                  transformOrigin: "top center",
+                  transition: "transform 0.2s ease"
+                }}
+                className="max-h-[80vh] w-auto object-contain cursor-zoom-in"
+              />
+            </div>
           </div>
         </div>
       `}
