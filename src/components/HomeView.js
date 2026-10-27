@@ -305,7 +305,7 @@ export function HomeView({
               ${entradasParticulares.length > 0 && html`
                 <span className="flex items-center gap-1.5 bg-purple-50 text-purple-900 px-2.5 py-1 rounded-lg border border-purple-300 shadow-sm">
                   <span className="w-4 h-4 rounded bg-purple-100 border-2 border-dashed border-purple-600 inline-block"></span>
-                  Particular — Não Fazer (${entradasParticulares.map(([q]) => q).join(", ")})
+                  Particular — Não Fazer
                 </span>
               `}
             </div>
