@@ -153,64 +153,36 @@ export function CalendarioView({
         </div>
       </div>
 
-      <!-- Card do Arranjo de Cartas via Zoom (Dinâmico, lido do painel do Admin) -->
-      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-3 text-xs">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="space-y-0.5">
-            <span className="text-[10px] uppercase font-extrabold bg-indigo-100 text-indigo-900 px-2.5 py-0.5 rounded">
-              Arranjo de Cartas / Online
-            </span>
-            <h3 className="font-extrabold text-sm sm:text-base text-[#1e3a5f]">
-              💻 Dias de Campo no Zoom deste Mês
-            </h3>
-          </div>
-          <span className="text-slate-500 font-semibold text-[11px]">
-            Toque no botão para entrar na sala do dia correspondente
+      <!-- Card do Arranjo de Cartas via Zoom (Visual limpo: apenas Dia, Horário e Dirigente) -->
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div className="space-y-1">
+          <span className="text-[10px] uppercase font-extrabold bg-indigo-100 text-indigo-900 px-2.5 py-0.5 rounded">
+            Toda Segunda-Feira
           </span>
+          <h3 className="font-extrabold text-sm sm:text-base text-[#1e3a5f]">
+            💻 Arranjo de Cartas via Zoom
+          </h3>
+          <p className="text-slate-600">
+            Programação dos dirigentes responsáveis pela sala do Zoom deste mês:
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
-          ${(zoomConfig?.dias || []).length === 0
-            ? html`
-                <p className="text-slate-500 italic col-span-full">
-                  Nenhum dia de Zoom configurado pelo Administrador para este período.
-                </p>
-              `
-            : (zoomConfig?.dias || []).map(
-                item => html`
-                  <div
-                    key=${item.id}
-                    className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3 flex flex-col justify-between gap-2 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-extrabold uppercase bg-indigo-200 text-indigo-900 px-2 py-0.5 rounded">
-                        Dia ${String(item.dia).padStart(2, "0")}
-                      </span>
-                      <span className="font-bold text-indigo-950 text-[11px]">
-                        🕒 ${item.horario}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-500 uppercase block">Dirigente:</span>
-                      <span className="font-extrabold text-[#1e3a5f] text-xs">
-                        ${item.dirigente}
-                      </span>
-                    </div>
-
-                    ${item.link && html`
-                      <a
-                        href=${item.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-2 rounded-lg text-center text-[11px] shadow-sm transition block"
-                      >
-                        🔗 Entrar no Zoom
-                      </a>
-                    `}
-                  </div>
-                `
-              )}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full lg:w-auto flex-1 max-w-2xl">
+          ${(zoomConfig?.dias || []).map(
+            item => html`
+              <div
+                key=${item.id || item.dia}
+                className="bg-indigo-50/70 border border-indigo-200 rounded-lg p-2.5 text-center"
+              >
+                <span className="text-[10px] font-extrabold uppercase text-indigo-700 block">
+                  Dia ${String(item.dia).padStart(2, "0")} • ${item.horario}
+                </span>
+                <span className="font-bold text-[#1e3a5f] text-xs mt-0.5 block">
+                  ${item.dirigente}
+                </span>
+              </div>
+            `
+          )}
         </div>
       </div>
 
