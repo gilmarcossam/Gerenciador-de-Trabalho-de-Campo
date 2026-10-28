@@ -39,7 +39,7 @@ export function DirigenteView({
                   Dia ${String(item.dia).padStart(2, "0")} (${item.semana}) -${item.hora}
                 </span>
                 <p className="text-slate-600">
-                  Mapa ${item.mapa} • Local: ${s?.nome || "Grupos"} • Dirigente:{" "}
+                  Mapa ${item.mapa} • Local: ${s?.nome || "Grupos"} • Dirigente: 
                   <strong>${item.dirigente}</strong>
                 </p>
               </div>

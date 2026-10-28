@@ -21,196 +21,124 @@ export function HomeView({
   zoomConfig,
   onOpenReportModal
 }) {
+  const [quadraFocada, setQuadraFocada] = useState(null);
   const [zoomImgUrl, setZoomImgUrl] = useState(null);
   const [zoomScale, setZoomScale] = useState(1);
 
-  const entradasSemMoradores = Object.entries(territorioAtual.semMoradores || {});
-  const grupoAtivo = grupos.find(g => g.id === Number(grupoSelecionadoId)) || grupos[0];
+  const diasUnicos = Array.from(new Set(programacaoVigente.map(p => p.dia))).sort(
+    (a, b) => a - b
+  );
 
-  // Mapeia as quadras deste território que estão reservadas como Território Particular (ainda não concluídas)
-  const quadrasParticularesAtivas = {};
+  // Quadras sem moradores cadastradas neste mapa
+  const entradasSemMoradores = Object.entries(territorioAtual.semMoradores || {});
+
+  // Quadras em Território Particular ativas neste mapa
+  const quadrasParticularesMapa = {};
   (particulares || [])
     .filter(p => p.mapa === territorioAtual.numero)
     .forEach(p => {
       p.quadras.forEach(q => {
         if (!p.concluidas?.[q]) {
-          quadrasParticularesAtivas[q] = p.usuarioNome;
+          quadrasParticularesMapa[q] = p.usuarioNome;
         }
       });
     });
+  const entradasParticulares = Object.entries(quadrasParticularesMapa);
 
-  const entradasParticulares = Object.entries(quadrasParticularesAtivas);
+  // Quadras Parciais deste mapa
+  const entradasParciais = Object.entries(territorioAtual.parciais || {});
 
-  const temSaidaProvisoria = isDiaDeGrupos && grupoAtivo?.saidaProvisoriaAtiva;
-  const nomeSaidaExibido = temSaidaProvisoria
-    ? grupoAtivo.saidaProvisoriaNome || "Local Provisório"
-    : localSaidaAtual?.nome;
-  const enderecoSaidaExibido = temSaidaProvisoria
-    ? grupoAtivo.saidaProvisoriaEndereco
-    : localSaidaAtual?.endereco;
-  const quadraSaidaExibida = temSaidaProvisoria
-    ? grupoAtivo.saidaProvisoriaQuadra || "-"
-    : localSaidaAtual?.quadraLocal;
+  // Casas Restritas deste mapa
+  const restricoesDoMapa = (restricoes || []).filter(
+    r => r.mapa === territorioAtual.numero
+  );
+
+  // Grupo selecionado (quando for domingo de grupos)
+  const grupoAtivo =
+    grupos.find(g => g.id === Number(grupoSelecionadoId)) || grupos[0];
+
+  const nomeLocalExibido =
+    isDiaDeGrupos && grupoAtivo?.saidaProvisoriaAtiva
+      ? `${grupoAtivo.saidaProvisoriaNome} (Provisório)`
+      : localSaidaAtual?.nome || "Local a definir";
+
+  const enderecoLocalExibido =
+    isDiaDeGrupos && grupoAtivo?.saidaProvisoriaAtiva
+      ? grupoAtivo.saidaProvisoriaEndereco
+      : localSaidaAtual?.endereco || "";
 
   return html`
     <div className="space-y-4">
-      ${campanha.ativa && html`
-        <div className="bg-amber-600 text-white p-3 rounded-xl shadow flex justify-between items-center">
-          <div>
-            <span className="text-[10px] uppercase font-bold bg-white/20 px-2 py-0.5 rounded">
-              Campanha Ativa
-            </span>
-            <h2 className="font-bold text-sm sm:text-base mt-0.5">${campanha.nome}</h2>
-            <p className="text-xs text-amber-100">${campanha.observacao}</p>
-          </div>
+      <!-- Banner de Campanha Especial (se estiver ativa) -->
+      ${campanha?.ativa && html`
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-3.5 rounded-xl shadow-sm text-xs">
+          <span className="font-extrabold text-amber-900 uppercase block">
+            📢 ${campanha.nome} (${campanha.dataInicio} a ${campanha.dataFim})
+          </span>
+          <p className="text-amber-800 mt-0.5">${campanha.observacao}</p>
         </div>
       `}
 
-      <!-- Seletor de Dia -->
-      <div className="bg-white p-3 rounded-xl shadow-sm border flex flex-wrap items-center justify-between gap-2">
+      <!-- Barra de Seleção de Dia do Mês (Clean) + Atalhos de Teste -->
+      <div className="bg-white rounded-xl shadow-sm border p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-600">
-            Dia de ${mesVigenteInfo?.mesNome}:
+          <span className="font-bold text-slate-700">
+            Dia de ${mesVigenteInfo?.mesNome || "Junho"}:
           </span>
           <select
-  value=${diaSelecionado}
-  onChange=${e => setDiaSelecionado(Number(e.target.value))}
-  className="border rounded-lg px-3 py-2 font-bold text-[#1e3a5f] bg-white text-xs sm:text-sm"
->
-  ${programacaoVigente.map(
-    p => html`
-      <option key=${p.id} value=${p.dia}>
-        Dia ${String(p.dia).padStart(2, "0")} - ${p.semana}
-      </option>
-    `
-  )}
-</select>
+            value=${diaSelecionado}
+            onChange=${e => {
+              setDiaSelecionado(Number(e.target.value));
+              setQuadraFocada(null);
+            }}
+            className="border rounded-lg px-3 py-1.5 font-bold text-[#1e3a5f] bg-slate-50"
+          >
+            ${diasUnicos.map(d => {
+              const infoDia = programacaoVigente.find(p => p.dia === d);
+              return html`
+                <option key=${d} value=${d}>
+                  Dia ${String(d).padStart(2, "0")} - ${infoDia?.semana || ""}
+                </option>
+              `;
+            })}
+          </select>
         </div>
-        <div className="flex gap-1.5 text-xs">
+
+        <div className="flex flex-wrap gap-1.5">
           <button
-            onClick=${() => setDiaSelecionado(12)}
-            className="px-2.5 py-1 rounded bg-amber-100 text-amber-900 font-bold"
+            type="button"
+            onClick=${() => {
+              setDiaSelecionado(12);
+              setQuadraFocada(null);
+            }}
+            className="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold px-2.5 py-1 rounded-lg"
           >
             Dia 12 (Com Particular/Escola)
           </button>
           <button
-            onClick=${() => setDiaSelecionado(2)}
-            className="px-2.5 py-1 rounded bg-emerald-100 text-emerald-900 font-bold"
+            type="button"
+            onClick=${() => {
+              setDiaSelecionado(2);
+              setQuadraFocada(null);
+            }}
+            className="bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold px-2.5 py-1 rounded-lg"
           >
             Dia 02 (Mapa Limpo)
           </button>
           <button
-            onClick=${() => setDiaSelecionado(14)}
-            className="px-2.5 py-1 rounded bg-blue-100 text-blue-900 font-bold"
+            type="button"
+            onClick=${() => {
+              setDiaSelecionado(14);
+              setQuadraFocada(null);
+            }}
+            className="bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold px-2.5 py-1 rounded-lg"
           >
             Dia 14 (Domingo de Grupos)
           </button>
         </div>
       </div>
 
-      <!-- SELETOR DE GRUPO (Domingos de Campo em Grupos) -->
-      ${isDiaDeGrupos && html`
-        <div className="space-y-3">
-          <div className="bg-[#1e3a5f] text-white p-4 rounded-xl shadow-md space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <span className="text-[10px] uppercase bg-blue-800 px-2 py-0.5 rounded font-bold">
-                  Saída de Domingo em Grupos
-                </span>
-                <h3 className="font-bold text-sm sm:text-base mt-1">
-                  👥 Selecione o seu Grupo de Campo para ver o Mapa e Relatar:
-                </h3>
-              </div>
-
-              <select
-                value=${grupoSelecionadoId}
-                onChange=${e => setGrupoSelecionadoId(Number(e.target.value))}
-                className="bg-white text-[#1e3a5f] font-bold text-xs px-3 py-2 rounded-lg shadow-sm"
-              >
-                ${grupos.map(
-                  g => html`
-                    <option key=${g.id} value=${g.id}>
-                      ${g.nome} — Mapa ${g.mapa} (${g.anciao} / ${g.ajudante})
-                    </option>
-                  `
-                )}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 pt-1">
-              ${grupos.map(g => {
-                const ativo = Number(grupoSelecionadoId) === g.id;
-                return html`
-                  <button
-                    key=${g.id}
-                    onClick=${() => setGrupoSelecionadoId(g.id)}
-                    className=${`text-left p-2.5 rounded-lg border transition relative ${
-                      ativo
-                        ? "bg-white text-[#1e3a5f] border-white shadow-md font-extrabold"
-                        : "bg-[#24558f] text-blue-100 border-blue-700 hover:bg-blue-800"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center text-xs">
-                      <span>${g.nome}</span>
-                      <span
-                        className=${`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          ativo ? "bg-[#1e3a5f] text-white" : "bg-blue-900 text-blue-200"
-                        }`}
-                      >
-                        Mapa ${g.mapa}
-                      </span>
-                    </div>
-                    <p
-                      className=${`text-[11px] mt-1 truncate ${
-                        ativo ? "text-slate-600 font-semibold" : "text-blue-200"
-                      }`}
-                    >
-                      ${g.anciao} • ${g.ajudante}
-                    </p>
-                  </button>
-                `;
-              })}
-            </div>
-          </div>
-
-          ${grupoAtivo?.visitaSupGrupos && html`
-            <div className="bg-sky-50 border-l-4 border-sky-600 p-3.5 rounded-r-xl shadow-sm flex items-start gap-3">
-              <span className="text-xl">👔</span>
-              <div className="text-xs text-sky-950 space-y-0.5">
-                <span className="text-[10px] uppercase font-extrabold bg-sky-200 text-sky-900 px-2 py-0.5 rounded">
-                  Aviso Especial — ${grupoAtivo.nome}
-                </span>
-                <h4 className="font-extrabold text-sm text-[#1e3a5f] pt-0.5">
-                  Visita do Superintendente de Grupos Hoje!
-                </h4>
-                <p className="text-slate-700 font-medium">
-                  Hoje o <strong>${grupoAtivo.nome}</strong> receberá a visita do Superintendente de Grupos.
-                  ${grupoAtivo.visitaSupGruposObs ? ` — ${grupoAtivo.visitaSupGruposObs}` : ""}
-                </p>
-              </div>
-            </div>
-          `}
-
-          ${grupoAtivo?.saidaProvisoriaAtiva && html`
-            <div className="bg-amber-50 border-l-4 border-amber-500 p-3.5 rounded-r-xl shadow-sm flex items-start gap-3">
-              <span className="text-xl">📍</span>
-              <div className="text-xs text-amber-950 space-y-1 flex-1">
-                <span className="text-[10px] uppercase font-extrabold bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
-                  Mudança de Endereço no Dia — ${grupoAtivo.nome}
-                </span>
-                <h4 className="font-extrabold text-sm text-amber-900 pt-0.5">
-                  Atenção: O local da saída deste grupo mudou excepcionalmente hoje!
-                </h4>
-                <p className="text-slate-800">
-                  <strong>Novo Local Provisório:</strong> ${grupoAtivo.saidaProvisoriaNome} —{" "}
-                  <strong>${grupoAtivo.saidaProvisoriaEndereco}</strong>
-                </p>
-              </div>
-            </div>
-          `}
-        </div>
-      `}
-<!-- CARD DE CAMPO NO ZOOM (Aparece automaticamente na Tela Inicial nos dias configurados pelo Admin) -->
+      <!-- CARD DE CAMPO NO ZOOM (Aparece automaticamente nos dias configurados pelo Admin) -->
       ${(zoomConfig?.dias || [])
         .filter(z => Number(z.dia) === Number(diaSelecionado))
         .map(
@@ -247,87 +175,126 @@ export function HomeView({
           `
         )}
 
-      <!-- Alerta quando o Local da Saída fica em um Mapa diferente do Território trabalhado -->
-      ${!temSaidaProvisoria &&
-        localSaidaAtual &&
-        localSaidaAtual.mapaLocal !== territorioAtual.numero && html`
-        <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl text-xs text-amber-900">
-          <strong>⚠️ Atenção: Local da Saída em Mapa Diferente!</strong> O ponto de encontro
-          (<strong>${localSaidaAtual.nome}</strong>) fica na Quadra
-          <strong> ${localSaidaAtual.quadraLocal}</strong> do
-          <strong> Mapa ${localSaidaAtual.mapaLocal}</strong>, mas o território a ser trabalhado hoje é o
-          <strong> Mapa ${territorioAtual.numero}</strong>.
+      <!-- SE FOR DOMINGO DE GRUPOS: Botões de Seleção de Grupo -->
+      ${isDiaDeGrupos && html`
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase text-[#1e3a5f]">
+              👥 Domingo de Saída em Grupos — Selecione o seu Grupo:
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            ${grupos.map(
+              g => html`
+                <button
+                  type="button"
+                  key=${g.id}
+                  onClick=${() => {
+                    setGrupoSelecionadoId(g.id);
+                    setQuadraFocada(null);
+                  }}
+                  className=${`p-3 rounded-xl border text-left transition ${
+                    Number(grupoSelecionadoId) === g.id
+                      ? "bg-[#1e3a5f] text-white border-[#1e3a5f] shadow-md"
+                      : "bg-white text-slate-800 hover:bg-blue-100/50"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-extrabold text-xs sm:text-sm">${g.nome}</span>
+                    <span
+                      className=${`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        Number(grupoSelecionadoId) === g.id
+                          ? "bg-blue-800 text-blue-100"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      Mapa ${g.mapa}
+                    </span>
+                  </div>
+                  <p
+                    className=${`text-[11px] mt-1 truncate ${
+                      Number(grupoSelecionadoId) === g.id ? "text-blue-200" : "text-slate-500"
+                    }`}
+                  >
+                    👤 ${g.anciao} / ${g.ajudante}
+                  </p>
+                </button>
+              `
+            )}
+          </div>
         </div>
       `}
 
-      <!-- CARTÃO UNIFICADO DO TERRITÓRIO -->
-      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-4">
-        <div className="flex flex-wrap justify-between items-start gap-3 border-b pb-3.5">
+      <!-- CARD PRINCIPAL DO TERRITÓRIO DO DIA -->
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-5">
+        <!-- Cabeçalho do Mapa, Local da Saída e Dirigente (Sem caracteres {" "}!) -->
+        <div className="flex flex-wrap justify-between items-start gap-3 border-b pb-4">
           <div className="space-y-1.5">
-            <span className="text-xs font-bold text-blue-700 uppercase block">
-              ${saidaAtual?.periodo} • ${saidaAtual?.hora}
+            <span className="text-xs font-extrabold text-blue-700 uppercase block">
+              ${saidaAtual?.periodo || "MANHÃ"} • ${saidaAtual?.hora || "09:00"}
             </span>
-            <h2 className="text-lg sm:text-xl font-extrabold text-[#1e3a5f]">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-[#1e3a5f]">
               Mapa ${territorioAtual.numero} - ${territorioAtual.nome}
             </h2>
-            <p className="text-xs text-slate-600">
-              <strong>Local da Saída ${temSaidaProvisoria ? "(Provisório Hoje)" : ""}:</strong>{" "}
-              ${nomeSaidaExibido} — ${enderecoSaidaExibido} (Quadra ${quadraSaidaExibida})
+            <p className="text-xs sm:text-sm text-slate-700">
+              <strong>Local da Saída:</strong> ${nomeLocalExibido} — ${enderecoLocalExibido}
             </p>
-            <div className="pt-0.5">
+            <div className="pt-1">
               <a
                 href=${`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                  (enderecoSaidaExibido || "") + ", Mongaguá - SP"
+                  enderecoLocalExibido + ", Mongaguá - SP"
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow-sm transition"
+                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-sm transition"
               >
                 📍 Abrir Endereço da Saída no GPS
               </a>
             </div>
           </div>
 
-          <div className="bg-blue-50 px-3.5 py-2 rounded-lg border border-blue-200 text-right shrink-0">
-            <span className="text-[10px] uppercase font-bold text-blue-700 block">
-              ${isDiaDeGrupos ? "Dirigentes do Grupo (Ancião / Ajudante)" : "Dirigente Designado"}
+          <div className="bg-blue-50 border border-blue-200 px-3.5 py-2 rounded-lg text-right shrink-0">
+            <span className="text-[10px] uppercase font-bold text-blue-800 block">
+              Dirigente Designado
             </span>
-            <span className="font-bold text-sm text-[#1e3a5f]">${saidaAtual?.dirigente}</span>
+            <span className="font-extrabold text-sm text-[#1e3a5f]">
+              ${saidaAtual?.dirigente}
+            </span>
           </div>
         </div>
 
-        <!-- 1. Grade de Números de Quadras -->
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <!-- 1. SITUAÇÃO DAS QUADRAS -->
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm sm:text-base font-extrabold uppercase text-[#1e3a5f] tracking-wide">
                 SITUAÇÃO DAS QUADRAS
               </h3>
-              <span className="bg-[#24558f] text-white text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+              <span className="bg-[#1e3a5f] text-white text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full shadow-sm">
                 Ciclo ${territorioAtual.rodada}
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-bold text-slate-800">
-              <span className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-300 shadow-sm">
+            <!-- Legenda Limpa (Sem números de quadras nos rótulos) -->
+            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-bold">
+              <span className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border shadow-sm text-slate-700">
                 <span className="w-4 h-4 rounded bg-white border-2 border-slate-400 inline-block"></span>
                 Disponível
               </span>
-              <span className="flex items-center gap-1.5 bg-amber-50 text-amber-950 px-2.5 py-1 rounded-lg border border-amber-300 shadow-sm">
-                <span className="w-4 h-4 rounded bg-amber-400 border border-amber-500 inline-block"></span>
+              <span className="flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-300 shadow-sm text-amber-900">
+                <span className="w-4 h-4 rounded bg-amber-400 border border-amber-600 inline-block"></span>
                 Parcial
               </span>
-              <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-300 shadow-sm">
+              <span className="flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-300 shadow-sm text-emerald-900">
                 <span className="w-4 h-4 rounded bg-emerald-600 inline-block"></span>
                 Trabalhada
               </span>
 
-              <!-- Legenda de Quadras Sem Moradores (Só aparece se houver no mapa) -->
               ${entradasSemMoradores.map(
                 ([qNum, nomeCadastrado]) => html`
                   <span
-                    key=${qNum}
-                    className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-300 shadow-sm"
+                    key=${`leg-sm-${qNum}`}
+                    className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-300 shadow-sm text-slate-700"
                   >
                     <span className="w-4 h-4 rounded bg-slate-200 border-2 border-dashed border-slate-500 inline-block"></span>
                     ${nomeCadastrado}
@@ -335,9 +302,8 @@ export function HomeView({
                 `
               )}
 
-              <!-- Legenda de Território Particular (Só aparece se houver quadra particular em andamento neste mapa) -->
               ${entradasParticulares.length > 0 && html`
-                <span className="flex items-center gap-1.5 bg-purple-50 text-purple-900 px-2.5 py-1 rounded-lg border border-purple-300 shadow-sm">
+                <span className="flex items-center gap-1.5 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-300 shadow-sm text-purple-900">
                   <span className="w-4 h-4 rounded bg-purple-100 border-2 border-dashed border-purple-600 inline-block"></span>
                   Particular — Não Fazer
                 </span>
@@ -345,77 +311,143 @@ export function HomeView({
             </div>
           </div>
 
-          <div className="grid grid-cols-7 sm:grid-cols-10 gap-1.5 bg-slate-50 p-3 rounded-xl border">
-            ${Array.from({ length: territorioAtual.totalQuadras }, (_, i) => i + 1).map(num => {
-              const nomeLocalSemMorador =
-                territorioAtual.semMoradores?.[num] ||
-                territorioAtual.semMoradores?.[String(num)];
-              const isSemMorador = Boolean(nomeLocalSemMorador);
-
-              const donoParticular =
-                quadrasParticularesAtivas[num] || quadrasParticularesAtivas[String(num)];
-              const isParticularAtivo = !isSemMorador && Boolean(donoParticular);
-
-              const isParcial =
-                !isSemMorador &&
-                !isParticularAtivo &&
-                Boolean(
-                  territorioAtual.parciais?.[num] ||
-                    territorioAtual.parciais?.[String(num)]
-                );
+          <!-- Grade de Botões das Quadras -->
+          <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 sm:gap-2.5">
+            ${Array.from({ length: territorioAtual.totalQuadras }, (_, i) => i + 1).map(q => {
+              const motivoSemMorador =
+                territorioAtual.semMoradores?.[q] ||
+                territorioAtual.semMoradores?.[String(q)];
+              const isSemMorador = Boolean(motivoSemMorador);
+              const donoParticular = quadrasParticularesMapa[q];
+              const isParticular = !isSemMorador && Boolean(donoParticular);
+              const detalheParcial =
+                territorioAtual.parciais?.[q] || territorioAtual.parciais?.[String(q)];
+              const isParcial = !isSemMorador && !isParticular && Boolean(detalheParcial);
               const isFeita =
                 !isSemMorador &&
-                !isParticularAtivo &&
+                !isParticular &&
                 !isParcial &&
-                territorioAtual.trabalhadas.includes(num);
+                territorioAtual.trabalhadas.includes(q);
 
               return html`
-                <div
-                  key=${num}
-                  title=${
+                <button
+                  type="button"
+                  key=${q}
+                  onClick=${() => setQuadraFocada(quadraFocada === q ? null : q)}
+                  className=${`h-12 sm:h-14 rounded-xl font-extrabold text-sm sm:text-base flex flex-col items-center justify-center transition relative ${
+                    quadraFocada === q ? "ring-4 ring-blue-400 scale-105 z-10 " : ""
+                  }${
                     isSemMorador
-                      ? `${nomeLocalSemMorador}`
-                      : isParticularAtivo
-                      ? `Território Particular (${donoParticular})`
-                      : ""
-                  }
-                  className=${`py-1.5 px-1 rounded-lg font-bold text-xs text-center border flex flex-col items-center justify-center ${
-                    isSemMorador
-                      ? "bg-slate-200 text-slate-600 border-2 border-dashed border-slate-400"
-                      : isParticularAtivo
+                      ? "bg-slate-200/80 text-slate-500 border-2 border-dashed border-slate-400"
+                      : isParticular
                       ? "bg-purple-100 text-purple-900 border-2 border-dashed border-purple-500"
                       : isParcial
-                      ? "bg-amber-400 text-amber-950 border-amber-500 shadow-sm"
+                      ? "bg-amber-400 text-amber-950 border-2 border-amber-600 shadow-sm"
                       : isFeita
-                      ? "bg-emerald-600 text-white border-emerald-700"
-                      : "bg-white text-slate-800 border-slate-300"
+                      ? "bg-emerald-600 text-white border-2 border-emerald-700 shadow-sm"
+                      : "bg-white text-slate-800 border-2 border-slate-300 hover:border-blue-500 shadow-sm"
                   }`}
                 >
-                  <span>${num}</span>${isSemMorador && html`
-                    <span className="text-[9px] font-semibold text-slate-600 leading-tight truncate max-w-full">
-                      ${nomeLocalSemMorador}
+                  <span>${q}</span>
+                  ${isSemMorador && html`
+                    <span className="text-[8px] font-bold uppercase truncate max-w-[90%] leading-none mt-0.5">
+                      ${motivoSemMorador}
                     </span>
                   `}
-                  ${isParticularAtivo && html`
-                    <span className="text-[9px] font-bold text-purple-800 leading-tight truncate max-w-full">
-                      Particular
+                  ${isParticular && html`
+                    <span className="text-[8px] font-bold uppercase leading-none mt-0.5">
+                      Não Fazer
                     </span>
                   `}
-                </div>
+                </button>
               `;
             })}
           </div>
 
-          ${Object.keys(territorioAtual.parciais || {}).length > 0 && html`
-            <div className="mt-2.5 bg-amber-50 border border-amber-300 rounded-lg p-2.5 text-xs text-amber-900">
-              <strong>🟨 Atenção às Quadras Parciais:</strong>
-              <ul className="list-disc list-inside mt-1">
-                ${Object.entries(territorioAtual.parciais).map(
-                  ([q, det]) => html`<li key=${q}><strong>${q}:</strong> ${det}</li>`
-                )}
-              </ul>
+          <!-- Painel de Detalhe ao Clicar numa Quadra Específica -->
+          ${quadraFocada && html`
+            <div className="bg-white border-2 border-blue-200 rounded-xl p-3 text-xs flex justify-between items-center">
+              <div>
+                <strong className="text-[#1e3a5f] text-sm">
+                  Quadra ${quadraFocada}:
+                </strong> 
+                ${territorioAtual.semMoradores?.[quadraFocada]
+                  ? html`<span className="text-slate-700 font-bold">Quadra sem moradores (${territorioAtual.semMoradores[quadraFocada]}) — Não trabalhar.</span>`
+                  : quadrasParticularesMapa[quadraFocada]
+                  ? html`<span className="text-purple-800 font-bold">Quadra em Território Particular (${quadrasParticularesMapa[quadraFocada]}) — Não fazer no campo normal.</span>`
+                  : territorioAtual.parciais?.[quadraFocada]
+                  ? html`<span className="text-amber-900 font-bold">Parcial — Falta concluir: ${territorioAtual.parciais[quadraFocada]}</span>`
+                  : territorioAtual.trabalhadas.includes(quadraFocada)
+                  ? html`<span className="text-emerald-700 font-bold">✅ Quadra já trabalhada neste ciclo.</span>`
+                  : html`<span className="text-slate-700 font-bold">⬜ Quadra disponível para ser trabalhada hoje!</span>`}
+              </div>
+              <button
+                type="button"
+                onClick=${() => setQuadraFocada(null)}
+                className="text-slate-400 hover:text-slate-700 font-bold px-2"
+              >
+                ✕
+              </button>
             </div>
           `}
+
+          <!-- Resumo de Quadras Parciais, Último Trabalho e Casas Restritas (Sem caracteres {" "}!) -->
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            <div className="space-y-2 text-xs">
+              ${entradasParciais.length > 0 && html`
+                <div className="bg-amber-50 border border-amber-300 p-3 rounded-xl text-amber-950 space-y-1">
+                  <span className="font-extrabold block">
+                    🟨 Quadras Parciais (Onde continuar hoje):
+                  </span>
+                  <ul className="space-y-1">
+                    ${entradasParciais.map(
+                      ([qNum, det]) => html`
+                        <li key=${qNum}>
+                          • <strong>Quadra ${qNum}:</strong> ${det}
+                        </li>
+                      `
+                    )}
+                  </ul>
+                </div>
+              `}
+
+              <div className="bg-white border p-3 rounded-xl text-slate-700 space-y-1">
+                <span className="font-bold text-[#1e3a5f] block">
+                  📌 Histórico Recente deste Mapa:
+                </span>
+                <p>
+                  <strong>Último trabalho:</strong> ${territorioAtual.ultimaData} (${territorioAtual.ultimoDirigente})
+                </p>
+                <p>
+                  <strong>Observação anterior:</strong> "${territorioAtual.ultimaObs}"
+                </p>
+              </div>
+            </div>
+
+            <!-- Casas Restritas Limpas (Sem {" "}!) -->
+            <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-xs space-y-1.5">
+              <span className="font-extrabold text-red-900 block">
+                🛑 Casas Restritas (Não Bater) - Mapa ${territorioAtual.numero}:
+              </span>
+              ${restricoesDoMapa.length === 0
+                ? html`
+                    <p className="text-slate-600">
+                      Nenhuma restrição cadastrada neste mapa.
+                    </p>
+                  `
+                : html`
+                    <ul className="space-y-1 text-red-900 font-bold">
+                      ${restricoesDoMapa.map(
+                        r => html`
+                          <li key=${r.id}>
+                            📍 ${r.rua}, Nº ${r.numero} <span className="font-normal text-red-700">(${r.data})</span>
+                          </li>
+                        `
+                      )}
+                    </ul>
+                  `}
+            </div>
+          </div>
         </div>
 
         <!-- 2. Imagem do Mapa Exposta Logo Abaixo das Quadras -->
@@ -448,7 +480,7 @@ export function HomeView({
                   ${territorioAtual.imagens.length > 1 && html`
                     <div className="bg-slate-100 px-3 py-1.5 border-b flex justify-between items-center text-xs">
                       <span className="font-bold text-slate-700">
-                        Mapa ${territorioAtual.numero} - Parte${idx + 1}
+                        Mapa ${territorioAtual.numero} - Parte ${idx + 1}
                       </span>
                       <span className="text-[11px] text-blue-700 font-bold">🔍 Toque para ampliar</span>
                     </div>
@@ -464,52 +496,16 @@ export function HomeView({
           </div>
         </div>
 
-        <!-- 3. Última vez trabalhado & Observações -->
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="bg-slate-50 p-3 rounded-lg border">
-            <span className="font-bold text-slate-700 block mb-1">🕒 Última vez trabalhado:</span>
-            <p>
-              <strong>Data:</strong> ${territorioAtual.ultimaData} (${territorioAtual.ultimoDirigente})
-            </p>
-            <p className="mt-1 text-slate-600 italic">"${territorioAtual.ultimaObs}"</p>
-          </div>
-          <div className="bg-blue-50/60 p-3 rounded-lg border border-blue-200">
-            <span className="font-bold text-[#1e3a5f] block mb-1">
-              📌 Observação do Ancião / Servo:
-            </span>
-            <p className="text-slate-700">${territorioAtual.obsAnciao}</p>
-          </div>
-        </div>
-
-        <!-- 4. Casas Restritas -->
-        <div className="bg-red-50 border border-red-200 p-3 rounded-lg text-xs">
-          <span className="font-bold text-red-800 block mb-1">
-            🛑 Casas Restritas (Não Bater) - Mapa ${territorioAtual.numero}:
-          </span>
-          ${restricoes.filter(r => r.mapa === territorioAtual.numero).length === 0
-            ? html`<p className="text-slate-600">Nenhuma casa restrita cadastrada para este mapa.</p>`
-            : html`
-                <ul className="space-y-1 text-red-900 font-semibold">
-                  ${restricoes
-                    .filter(r => r.mapa === territorioAtual.numero)
-                    .map(
-                      r => html`
-                        <li key=${r.id}>
-                          📍 ${r.rua}, Nº ${r.numero}{" "}
-                          <span className="text-[10px] text-red-600 font-normal">(${r.data})</span>
-                        </li>
-                      `
-                    )}
-                </ul>
-              `}
-        </div>
-
-        <!-- 5. Botão de Preencher Território -->
+        <!-- 3. Botão de Preencher Território Trabalhado Hoje (Enxuto para UX Mobile) -->
         <button
           onClick=${onOpenReportModal}
-          className="w-full bg-[#24558f] hover:bg-[#1e3a5f] text-white font-bold py-3.5 rounded-xl text-sm shadow transition"
+          className="w-full bg-[#24558f] hover:bg-[#1e3a5f] text-white font-bold py-3 px-4 rounded-xl shadow flex items-center justify-center gap-2 text-xs sm:text-sm transition"
         >
-          ✍️ Preencher Território Trabalhado Hoje ${isDiaDeGrupos ? `(${saidaAtual.periodo})` : ""}
+          <span>
+            ✍️ Preencher Território Trabalhado Hoje${
+              isDiaDeGrupos && grupoAtivo?.nome ? ` — ${grupoAtivo.nome}` : ""
+            }
+          </span>
         </button>
       </div>
 
