@@ -107,7 +107,7 @@ function App() {
   const saidaAtual = isDiaDeGrupos
     ? {
         ...saidaBase,
-        periodo: `DOMINGO DE GRUPOS (${grupoAtivo.nome})`,
+        periodo: grupoAtivo.nome,
         hora: grupoAtivo.horario || saidaBase.hora,
         mapa: grupoAtivo.mapa,
         saidaId: grupoAtivo.saidaId,
