@@ -490,8 +490,35 @@ export function AdminView({
                 onClick=${() => window.print()}
                 className="ml-auto bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-lg font-bold"
               >
-                🖨️ Imprimir / Salvar PDF (Mateus 4:4)
+                🖨️ Imprimir / Salvar PDF
               </button>
+            </div>
+
+            <!-- Campo para o Admin Master configurar o Texto Bíblico do Mês -->
+            <div className="pt-2 border-t border-blue-800 text-xs space-y-1">
+              <label className="font-bold text-blue-200 block">
+                📖 Texto Bíblico da Lista de Campo deste Mês (Exibido no cabeçalho da Lista do Mês):
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: “O homem não deve viver somente de pão, mas de toda palavra que vem da boca de Jeová.” — Mateus 4:4"
+                value=${
+                  listasMensais[mesSelecionadoAdmin]?.textoBiblico !== undefined
+                    ? listasMensais[mesSelecionadoAdmin].textoBiblico
+                    : "“O homem não deve viver somente de pão, mas de toda palavra que vem da boca de Jeová.” — Mateus 4:4"
+                }
+                onChange=${e => {
+                  const novoTexto = e.target.value;
+                  setListasMensais(prev => ({
+                    ...prev,
+                    [mesSelecionadoAdmin]: {
+                      ...prev[mesSelecionadoAdmin],
+                      textoBiblico: novoTexto
+                    }
+                  }));
+                }}
+                className="w-full bg-white text-slate-900 font-medium px-3 py-2 rounded-lg"
+              />
             </div>
           </div>
 

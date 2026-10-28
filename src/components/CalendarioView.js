@@ -10,7 +10,8 @@ export function CalendarioView({
   territorios,
   grupos,
   diaSelecionado,
-  setDiaSelecionado
+  setDiaSelecionado,
+  zoomConfig
 }) {
   const [diaDetalheModal, setDiaDetalheModal] = useState(null);
 
@@ -60,39 +61,26 @@ export function CalendarioView({
 
   const saidasDoDiaModal = diaDetalheModal ? saidasPorDia[diaDetalheModal] || [] : [];
 
+  const textoBiblicoExibido =
+    mesVigenteInfo?.textoBiblico !== undefined
+      ? mesVigenteInfo.textoBiblico
+      : "“O homem não deve viver somente de pão, mas de toda palavra que vem da boca de Jeová.” — Mateus 4:4";
+
   return html`
     <div className="space-y-4">
-      <!-- Cabeçalho Oficial da Lista de Campo do Mês -->
-      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 flex flex-wrap justify-between items-center gap-3">
-        <div>
-          <span className="text-[10px] uppercase font-extrabold bg-blue-100 text-[#1e3a5f] px-2.5 py-0.5 rounded">
-            Calendário Mensal de Pregação
-          </span>
-          <h2 className="text-lg sm:text-xl font-extrabold text-[#1e3a5f] mt-1">
-            📅 Lista de Campo — ${mesVigenteInfo?.mesNome} de ${mesVigenteInfo?.ano}
-          </h2>
-          <p className="text-xs text-slate-600 italic mt-0.5">
-            “O homem não deve viver somente de pão, mas de toda palavra que vem da boca de Jeová.” — <strong>Mateus 4:4</strong>
+      <!-- Cabeçalho Oficial Limpo (Sem legenda e sem botão de imprimir, com Texto Bíblico dinâmico do Admin) -->
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5">
+        <span className="text-[10px] uppercase font-extrabold bg-blue-100 text-[#1e3a5f] px-2.5 py-0.5 rounded">
+          Calendário Mensal de Pregação
+        </span>
+        <h2 className="text-lg sm:text-xl font-extrabold text-[#1e3a5f] mt-1">
+          📅 Lista de Campo — ${mesVigenteInfo?.mesNome} de ${mesVigenteInfo?.ano}
+        </h2>
+        ${textoBiblicoExibido && html`
+          <p className="text-xs text-slate-600 italic mt-1">
+            ${textoBiblicoExibido}
           </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-          <span className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border">
-            <span className="w-3 h-3 rounded bg-white border border-slate-400 inline-block"></span>
-            Campo Normal
-          </span>
-          <span className="flex items-center gap-1.5 bg-blue-50 text-blue-900 px-2.5 py-1 rounded-lg border border-blue-200">
-            <span className="w-3 h-3 rounded bg-blue-600 inline-block"></span>
-            Domingo em Grupos
-          </span>
-          <button
-            type="button"
-            onClick=${() => window.print()}
-            className="bg-[#1e3a5f] hover:bg-[#24558f] text-white px-3 py-1.5 rounded-lg shadow-sm transition no-print"
-          >
-            🖨️ Imprimir Calendário
-          </button>
-        </div>
+        `}
       </div>
 
       <!-- Dica simples de uso -->
@@ -165,42 +153,64 @@ export function CalendarioView({
         </div>
       </div>
 
-      <!-- Card do Arranjo de Cartas via Zoom posicionado abaixo do calendário -->
-      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div className="space-y-1">
-          <span className="text-[10px] uppercase font-extrabold bg-indigo-100 text-indigo-900 px-2.5 py-0.5 rounded">
-            Toda Segunda-Feira
+      <!-- Card do Arranjo de Cartas via Zoom (Dinâmico, lido do painel do Admin) -->
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-3 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="space-y-0.5">
+            <span className="text-[10px] uppercase font-extrabold bg-indigo-100 text-indigo-900 px-2.5 py-0.5 rounded">
+              Arranjo de Cartas / Online
+            </span>
+            <h3 className="font-extrabold text-sm sm:text-base text-[#1e3a5f]">
+              💻 Dias de Campo no Zoom deste Mês
+            </h3>
+          </div>
+          <span className="text-slate-500 font-semibold text-[11px]">
+            Toque no botão para entrar na sala do dia correspondente
           </span>
-          <h3 className="font-extrabold text-sm sm:text-base text-[#1e3a5f]">
-            💻 Arranjo de Cartas via Zoom
-          </h3>
-          <p className="text-slate-600">
-            Programação dos dirigentes responsáveis pela sala do Zoom nas segundas-feiras deste mês:
-          </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full lg:w-auto flex-1 max-w-2xl">
-          ${[
-            { dia: "01", nome: "Antônio Xavier" },
-            { dia: "08", nome: "Isac Menezes" },
-            { dia: "15", nome: "Antônio Xavier" },
-            { dia: "22", nome: "Isac Menezes" },
-            { dia: "29", nome: "Antônio Xavier" }
-          ].map(
-            item => html`
-              <div
-                key=${item.dia}
-                className="bg-indigo-50/70 border border-indigo-200 rounded-lg p-2.5 text-center"
-              >
-                <span className="text-[10px] font-extrabold uppercase text-indigo-700 block">
-                  Dia ${item.dia}
-                </span>
-                <span className="font-bold text-[#1e3a5f] text-xs mt-0.5 block">
-                  ${item.nome}
-                </span>
-              </div>
-            `
-          )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          ${(zoomConfig?.dias || []).length === 0
+            ? html`
+                <p className="text-slate-500 italic col-span-full">
+                  Nenhum dia de Zoom configurado pelo Administrador para este período.
+                </p>
+              `
+            : (zoomConfig?.dias || []).map(
+                item => html`
+                  <div
+                    key=${item.id}
+                    className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3 flex flex-col justify-between gap-2 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold uppercase bg-indigo-200 text-indigo-900 px-2 py-0.5 rounded">
+                        Dia ${String(item.dia).padStart(2, "0")}
+                      </span>
+                      <span className="font-bold text-indigo-950 text-[11px]">
+                        🕒 ${item.horario}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-500 uppercase block">Dirigente:</span>
+                      <span className="font-extrabold text-[#1e3a5f] text-xs">
+                        ${item.dirigente}
+                      </span>
+                    </div>
+
+                    ${item.link && html`
+                      <a
+                        href=${item.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-2 rounded-lg text-center text-[11px] shadow-sm transition block"
+                      >
+                        🔗 Entrar no Zoom
+                      </a>
+                    `}
+                  </div>
+                `
+              )}
         </div>
       </div>
 
