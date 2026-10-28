@@ -227,7 +227,7 @@ export function HomeView({
 
       <!-- CARD PRINCIPAL DO TERRITÓRIO DO DIA -->
       <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-5">
-        <!-- Cabeçalho do Mapa, Local da Saída e Dirigente (Sem caracteres {" "}!) -->
+        <!-- Cabeçalho do Mapa, Local da Saída e Dirigente (Sem caracteres  !) -->
         <div className="flex flex-wrap justify-between items-start gap-3 border-b pb-4">
           <div className="space-y-1.5">
             <span className="text-xs font-extrabold text-blue-700 uppercase block">
@@ -391,7 +391,7 @@ export function HomeView({
             </div>
           `}
 
-          <!-- Resumo de Quadras Parciais, Último Trabalho e Casas Restritas (Sem caracteres {" "}!) -->
+          <!-- Resumo de Quadras Parciais, Último Trabalho e Casas Restritas (Sem caracteres  !) -->
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             <div className="space-y-2 text-xs">
               ${entradasParciais.length > 0 && html`
@@ -424,7 +424,7 @@ export function HomeView({
               </div>
             </div>
 
-            <!-- Casas Restritas Limpas (Sem {" "}!) -->
+            <!-- Casas Restritas Limpas (Sem {!) -->
             <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-xs space-y-1.5">
               <span className="font-extrabold text-red-900 block">
                 🛑 Casas Restritas (Não Bater) - Mapa ${territorioAtual.numero}:
@@ -496,16 +496,17 @@ export function HomeView({
           </div>
         </div>
 
-        <!-- 3. Botão de Preencher Território Trabalhado Hoje (Enxuto para UX Mobile) -->
+      <!-- Botão de Preencher Território Trabalhado Hoje (Texto principal em cima, nome do grupo em baixo) -->
         <button
           onClick=${onOpenReportModal}
-          className="w-full bg-[#24558f] hover:bg-[#1e3a5f] text-white font-bold py-3 px-4 rounded-xl shadow flex items-center justify-center gap-2 text-xs sm:text-sm transition"
+          className="w-full bg-[#24558f] hover:bg-[#1e3a5f] text-white font-bold py-3 px-4 rounded-xl shadow flex flex-col items-center justify-center gap-0.5 text-xs sm:text-sm transition text-center"
         >
-          <span>
-            ✍️ Preencher Território Trabalhado Hoje${
-              isDiaDeGrupos && grupoAtivo?.nome ? ` — ${grupoAtivo.nome}` : ""
-            }
-          </span>
+          <span>✍️ Preencher Território Trabalhado Hoje</span>
+          ${isDiaDeGrupos && grupoAtivo?.nome && html`
+            <span className="text-[12px] text-blue-200 font-semibold">
+              ${grupoAtivo.nome}
+            </span>
+          `}
         </button>
       </div>
 

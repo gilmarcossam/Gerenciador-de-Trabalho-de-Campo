@@ -969,7 +969,7 @@ export function AdminView({
                         className="flex items-center justify-between bg-slate-100 border border-slate-300 rounded-lg px-3 py-2"
                       >
                         <div>
-                          <span className="font-extrabold text-[#1e3a5f]">Quadra ${qNum}:</span>{" "}
+                          <span className="font-extrabold text-[#1e3a5f]">Quadra ${qNum}:</span> 
                           <span className="text-slate-700 font-bold">${motivo}</span>
                         </div>
                         <button
@@ -1907,7 +1907,7 @@ export function AdminView({
                         👤 ${item.usuarioNome} — Mapa ${item.mapa} (${tMapa?.nome})
                       </span>
                       <p className="text-slate-600 mt-0.5">
-                        <strong>📍 Endereço:</strong> ${item.endereco} •{" "}
+                        <strong>📍 Endereço:</strong> ${item.endereco} • 
                         <strong>Designado em:</strong> ${item.dataDesignacao}
                       </p>
                     </div>
