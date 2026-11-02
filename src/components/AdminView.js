@@ -37,6 +37,9 @@ export function AdminView({
   const [mapaEditSelecionado, setMapaEditSelecionado] = useState("11");
   const [quadraSemMoradorNum, setQuadraSemMoradorNum] = useState("1");
   const [quadraSemMoradorMotivo, setQuadraSemMoradorMotivo] = useState("UPA");
+  const [diaCortePendencia, setDiaCortePendencia] = useState(12);
+  const [filtroDirigentePendencia, setFiltroDirigentePendencia] = useState("TODOS");
+  const [msgCopiadaId, setMsgCopiadaId] = useState(null);
 
   // Estado para criar um Novo Mapa do zero
   const [novoMapaForm, setNovoMapaForm] = useState({
@@ -94,7 +97,7 @@ export function AdminView({
     privilegio: "Publicador"
   });
 
-// Estado para adicionar um novo dia de Campo no Zoom
+  // Estado para adicionar um novo dia de Campo no Zoom
   const [novoDiaZoom, setNovoDiaZoom] = useState({
     dia: "1",
     horario: zoomConfig?.horarioPadrao || "09:30",
@@ -181,7 +184,6 @@ export function AdminView({
     setNovoMapaForm({ numero: "", nome: "", totalQuadras: 30, obsAnciao: "", imagemUrl: "" });
   };
 
-// Converte e otimiza o arquivo PNG/JPEG enviado pelo Admin Master para salvar no banco
   const lerEComprimirImagem = file => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -189,7 +191,7 @@ export function AdminView({
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          const maxDim = 1400; // Mantém leitura nítida das ruas e quadras sem pesar
+          const maxDim = 1400;
           let w = img.width;
           let h = img.height;
           if (w > maxDim || h > maxDim) {
@@ -215,7 +217,6 @@ export function AdminView({
     });
   };
 
-  // Adiciona 1 ou mais arquivos PNG/JPEG ao mapa atualmente selecionado
   const handleUploadImagensMapa = async (e, indiceSubstituir = null) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -247,7 +248,6 @@ export function AdminView({
     e.target.value = "";
   };
 
-  // Upload de arquivo PNG/JPEG no formulário de Criar Novo Mapa
   const handleUploadImagemNovoMapa = async e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -437,6 +437,16 @@ export function AdminView({
           }`}
         >
           7. Campanhas & Usuários
+        </button>
+        <button
+          onClick=${() => setAdminSection("pendencias")}
+          className=${`px-3 py-2 rounded-lg transition ${
+            adminSection === "pendencias"
+              ? "bg-[#1e3a5f] text-white"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          ⚠️ 8. Pendências de Dirigentes
         </button>
       </div>
 
@@ -672,7 +682,7 @@ export function AdminView({
         </div>
       `}
 
-     <!-- SEÇÃO 2: EDIÇÃO DE TERRITÓRIOS, UPLOAD DE MAPAS (PNG/JPEG) & QUADRAS SEM MORADORES -->
+      <!-- SEÇÃO 2: EDIÇÃO DE TERRITÓRIOS, UPLOAD DE MAPAS (PNG/JPEG) & QUADRAS SEM MORADORES -->
       ${adminSection === "territorios" && html`
         <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
@@ -697,7 +707,7 @@ export function AdminView({
                 ${territorios.map(
                   t => html`
                     <option key=${t.numero} value=${t.numero}>
-                      Mapa ${t.numero} -${t.nome}
+                      Mapa ${t.numero} - ${t.nome}
                     </option>
                   `
                 )}
@@ -884,7 +894,7 @@ export function AdminView({
                           <div className="p-2 bg-white flex items-center justify-center">
                             <img
                               src=${previewSrc}
-                              alt=${`Mapa ${territorioEmEdicao.numero} - Parte${idx + 1}`}
+                              alt=${`Mapa ${territorioEmEdicao.numero} - Parte ${idx + 1}`}
                               className="w-full max-h-64 object-contain rounded border"
                             />
                           </div>
@@ -918,7 +928,7 @@ export function AdminView({
                   className="w-full border rounded-lg px-2.5 py-2 font-bold bg-white"
                 >
                   ${Array.from({ length: territorioEmEdicao.totalQuadras }, (_, i) => i + 1).map(
-                    num => html`<option key=${num} value=${num}>Quadra${num}</option>`
+                    num => html`<option key=${num} value=${num}>Quadra ${num}</option>`
                   )}
                 </select>
               </div>
@@ -969,7 +979,7 @@ export function AdminView({
                         className="flex items-center justify-between bg-slate-100 border border-slate-300 rounded-lg px-3 py-2"
                       >
                         <div>
-                          <span className="font-extrabold text-[#1e3a5f]">Quadra ${qNum}:</span> 
+                          <span className="font-extrabold text-[#1e3a5f]">Quadra ${qNum}:</span>
                           <span className="text-slate-700 font-bold">${motivo}</span>
                         </div>
                         <button
@@ -1165,7 +1175,7 @@ export function AdminView({
                           ?.totalQuadras || 40
                     },
                     (_, i) => i + 1
-                 ).map(q => html`<option key=${q} value=${String(q)}>${q}</option>`)}
+                  ).map(q => html`<option key=${q} value=${String(q)}>${q}</option>`)}
                 </select>
               </div>
 
@@ -1300,7 +1310,7 @@ export function AdminView({
         </div>
       `}
 
-      <!-- SEÇÃO 4: CONFIGURAÇÃO DE GRUPOS DE CAMPO (100% RESTAURADA!) -->
+      <!-- SEÇÃO 4: CONFIGURAÇÃO DE GRUPOS DE CAMPO -->
       ${adminSection === "grupos" && html`
         <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-6">
           <div className="border-b pb-3">
@@ -1312,7 +1322,6 @@ export function AdminView({
             </p>
           </div>
 
-          <!-- Painel de Avisos do Domingo e Endereço Provisório por Grupo -->
           <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-4 space-y-4">
             <div>
               <span className="text-[10px] uppercase font-extrabold bg-[#1e3a5f] text-white px-2 py-0.5 rounded">
@@ -1340,7 +1349,6 @@ export function AdminView({
                       </span>
                     </div>
 
-                    <!-- 1. Visita do Superintendente de Grupos -->
                     <div className="bg-sky-50/80 border border-sky-200 rounded-lg p-2.5 space-y-2">
                       <label className="flex items-center gap-2 font-bold text-sky-950 cursor-pointer">
                         <input
@@ -1376,7 +1384,6 @@ export function AdminView({
                       `}
                     </div>
 
-                    <!-- 2. Endereço Provisório da Saída no Domingo -->
                     <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 space-y-2">
                       <label className="flex items-center gap-2 font-bold text-amber-950 cursor-pointer">
                         <input
@@ -1457,7 +1464,6 @@ export function AdminView({
             </div>
           </div>
 
-          <!-- Tabela Editável dos Grupos Atuais (Dados Costumeiros) -->
           <div className="space-y-2">
             <h4 className="font-extrabold text-sm text-[#1e3a5f]">
               Configuração Padrão (Costumeira) dos Grupos (${grupos.length})
@@ -1598,7 +1604,6 @@ export function AdminView({
             </div>
           </div>
 
-          <!-- Formulário para Adicionar Novo Grupo -->
           <form
             onSubmit=${handleSalvarNovoGrupo}
             className="bg-slate-50 p-4 rounded-xl border space-y-3 text-xs"
@@ -1767,7 +1772,7 @@ export function AdminView({
         </div>
       `}
 
-      <!-- SEÇÃO 5: TERRITÓRIOS PARTICULARES (COM BAIXA DO ADMIN E CASAS RESTRITAS) -->
+      <!-- SEÇÃO 5: TERRITÓRIOS PARTICULARES -->
       ${adminSection === "particulares" && html`
         <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-6">
           <div className="border-b pb-3">
@@ -1888,7 +1893,6 @@ export function AdminView({
             </div>
           </form>
 
-          <!-- Lista de Territórios Particulares Ativos -->
           <div className="space-y-3">
             <h4 className="font-extrabold text-sm text-[#1e3a5f]">
               Territórios Particulares Designados (${particulares.length})
@@ -1979,7 +1983,6 @@ export function AdminView({
             })}
           </div>
 
-          <!-- Cadastrar Casas Restritas no Mapa (Para caso o território deixe de ser particular) -->
           <div className="border-t pt-4 space-y-3 text-xs">
             <h4 className="font-extrabold text-sm text-red-900">
               🛑 Registrar Casa Restrita (Não Bater) em Qualquer Mapa
@@ -2135,7 +2138,6 @@ export function AdminView({
       <!-- SEÇÃO 7: CAMPANHAS, CAMPO NO ZOOM E USUÁRIOS -->
       ${adminSection === "campanha" && html`
         <div className="space-y-4">
-          <!-- GERENCIADOR DE CAMPO VIA ZOOM (EXCLUSIVO ADMIN MASTER / ADMIN) -->
           <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-4 text-xs">
             <div className="border-b pb-3 flex flex-wrap justify-between items-center gap-2">
               <div>
@@ -2151,7 +2153,6 @@ export function AdminView({
               </div>
             </div>
 
-            <!-- Configuração Padrão da Sala do Zoom -->
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-indigo-50/60 border border-indigo-200 p-3.5 rounded-xl items-end">
               <div className="sm:col-span-2">
                 <label className="font-bold text-indigo-950 block mb-1">
@@ -2192,7 +2193,6 @@ export function AdminView({
               </div>
             </div>
 
-            <!-- Formulário para Adicionar um Dia de Campo no Zoom -->
             <form
               onSubmit=${e => {
                 e.preventDefault();
@@ -2274,7 +2274,6 @@ export function AdminView({
               </div>
             </form>
 
-            <!-- Tabela Editável dos Dias de Campo no Zoom Cadastrados -->
             <div className="overflow-x-auto border rounded-xl">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -2363,7 +2362,6 @@ export function AdminView({
             </div>
           </div>
 
-          <!-- CAMPANHAS E USUÁRIOS (MANTIDOS INTEGRALMENTE) -->
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-xl shadow-sm border p-4 space-y-3 text-xs">
               <h3 className="font-bold text-sm text-[#1e3a5f]">Gerenciar Campanha Especial</h3>
@@ -2446,6 +2444,239 @@ export function AdminView({
               </div>
             </div>
           </div>
+        </div>
+      `}
+
+      <!-- SEÇÃO 8: CONTROLE DE PENDÊNCIAS DE PREENCHIMENTO DOS DIRIGENTES -->
+      ${adminSection === "pendencias" && html`
+        <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-4 text-xs">
+          <div className="flex flex-wrap justify-between items-start gap-3 border-b pb-3">
+            <div>
+              <span className="text-[10px] uppercase font-extrabold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded">
+                Auditoria & Cobrança de Relatórios
+              </span>
+              <h3 className="font-extrabold text-base text-[#1e3a5f] mt-1">
+                ⚠️ Dias Pendentes de Preenchimento de Quadras (${listasMensais[mesSelecionadoAdmin]?.mesNome}/${listasMensais[mesSelecionadoAdmin]?.ano})
+              </h3>
+              <p className="text-slate-500">
+                Verifique quais dirigentes ainda não informaram as quadras trabalhadas em seus dias de saída e copie um lembrete pronto para enviar no WhatsApp.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border items-end">
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">
+                Verificar pendências até o dia:
+              </label>
+              <select
+                value=${diaCortePendencia}
+                onChange=${e => setDiaCortePendencia(Number(e.target.value))}
+                className="w-full border rounded-lg px-3 py-2 bg-white font-bold text-[#1e3a5f]"
+              >
+                ${Array.from({ length: 31 }, (_, i) => i + 1).map(
+                  d => html`
+                    <option key=${d} value=${d}>
+                      Até o Dia ${String(d).padStart(2, "0")} de ${listasMensais[mesSelecionadoAdmin]?.mesNome}
+                    </option>
+                  `
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">
+                Filtrar por Dirigente:
+              </label>
+              <select
+                value=${filtroDirigentePendencia}
+                onChange=${e => setFiltroDirigentePendencia(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 bg-white font-bold text-[#1e3a5f]"
+              >
+                <option value="TODOS">Todos os Dirigentes</option>
+                ${usuarios
+                  .filter(u => u.role !== "Particular")
+                  .map(u => html`<option key=${u.id} value=${u.nome}>${u.nome}</option>`)}
+              </select>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-amber-950 font-semibold">
+              💡 Quando o dirigente preenche o relatório na Tela Inicial ou na Área do Dirigente, o dia sai automaticamente desta lista de pendências!
+            </div>
+          </div>
+
+          ${(() => {
+            const pendenciasMes = [];
+            const mesNomeAtual = listasMensais[mesSelecionadoAdmin]?.mesNome || "";
+
+            programacaoAdmin.forEach(item => {
+              if (item.dia > diaCortePendencia) return;
+
+              if (item.tipo === "Grupos") {
+                grupos.forEach(g => {
+                  const infoGrupo = item.gruposRelatados?.[g.id];
+                  if (!infoGrupo?.relatado) {
+                    const resp = `${g.anciao} / ${g.ajudante}`;
+                    if (
+                      filtroDirigentePendencia === "TODOS" ||
+                      resp.includes(filtroDirigentePendencia)
+                    ) {
+                      pendenciasMes.push({
+                        chave: `dom-${item.dia}-grp-${g.id}`,
+                        idDia: item.id,
+                        dia: item.dia,
+                        semana: item.semana,
+                        hora: g.horario || item.hora,
+                        tipoLabel: g.nome,
+                        mapa: g.mapa,
+                        saidaId: g.saidaId,
+                        dirigente: resp,
+                        isGrupo: true,
+                        grupoId: g.id
+                      });
+                    }
+                  }
+                });
+              } else if (!item.relatado) {
+                if (
+                  filtroDirigentePendencia === "TODOS" ||
+                  item.dirigente === filtroDirigentePendencia
+                ) {
+                  pendenciasMes.push({
+                    chave: `normal-${item.id}`,
+                    idDia: item.id,
+                    dia: item.dia,
+                    semana: item.semana,
+                    hora: item.hora,
+                    tipoLabel: item.periodo || "Manhã",
+                    mapa: item.mapa,
+                    saidaId: item.saidaId,
+                    dirigente: item.dirigente,
+                    isGrupo: false,
+                    grupoId: null
+                  });
+                }
+              }
+            });
+
+            if (pendenciasMes.length === 0) {
+              return html`
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center text-emerald-900 font-bold text-sm">
+                  🎉 Nenhuma pendência encontrada até o dia ${String(diaCortePendencia).padStart(2, "0")}! Todos os relatórios foram preenchidos.
+                </div>
+              `;
+            }
+
+            return html`
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="font-extrabold text-red-700 text-sm">
+                    🚨 Total de saídas sem preenchimento até o dia ${String(diaCortePendencia).padStart(2, "0")}: ${pendenciasMes.length}
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto border rounded-xl">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 border-b">
+                        <th className="p-2.5">Dia</th>
+                        <th className="p-2.5">Horário / Grupo</th>
+                        <th className="p-2.5">Local da Saída</th>
+                        <th className="p-2.5">Mapa</th>
+                        <th className="p-2.5">Dirigente Responsável</th>
+                        <th className="p-2.5">Ações do Admin Master</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${pendenciasMes.map(p => {
+                        const localObj = saidas.find(s => s.id === Number(p.saidaId));
+                        const textoCobranca = `Olá irmão ${p.dirigente}! Tudo bem? Notamos no sistema de territórios que o relatório de quadras trabalhadas do *Dia ${String(
+                          p.dia
+                        ).padStart(2, "0")}/${mesNomeAtual}* (${
+                          p.semana
+                        } às ${p.hora} - *Mapa ${p.mapa}*) ainda está pendente. Quando puder, poderia preencher lá no sistema ou me informar quais quadras foram feitas? Muito obrigado!`;
+
+                        return html`
+                          <tr key=${p.chave} className="border-b hover:bg-amber-50/40">
+                            <td className="p-2.5 font-extrabold text-[#1e3a5f]">
+                              Dia ${String(p.dia).padStart(2, "0")} (${p.semana})
+                            </td>
+                            <td className="p-2.5 font-semibold">
+                              ${p.hora} • ${p.tipoLabel}
+                            </td>
+                            <td className="p-2.5">${localObj?.nome || "-"}</td>
+                            <td className="p-2.5">
+                              <span className="bg-[#1e3a5f] text-white font-bold px-2 py-0.5 rounded text-[11px]">
+                                Mapa ${p.mapa}
+                              </span>
+                            </td>
+                            <td className="p-2.5 font-extrabold text-red-800">
+                              👤 ${p.dirigente}
+                            </td>
+                            <td className="p-2.5 flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                onClick=${() => {
+                                  navigator.clipboard?.writeText(textoCobranca);
+                                  setMsgCopiadaId(p.chave);
+                                  setTimeout(() => setMsgCopiadaId(null), 2500);
+                                }}
+                                className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] shadow-sm"
+                              >
+                                ${msgCopiadaId === p.chave
+                                  ? "✅ Mensagem Copiada!"
+                                  : "📲 Copiar Cobrança"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick=${() => {
+                                  const novosDias = programacaoAdmin.map(item => {
+                                    if (item.id !== p.idDia) return item;
+                                    if (p.isGrupo) {
+                                      const gruposRelatados = {
+                                        ...(item.gruposRelatados || {}),
+                                        [p.grupoId]: {
+                                          relatado: true,
+                                          por: "Baixa pelo Admin",
+                                          data: new Date().toLocaleDateString("pt-BR"),
+                                          resumo: "Baixa manual pelo Admin Master"
+                                        }
+                                      };
+                                      const todosFeitos = grupos.every(
+                                        g => gruposRelatados[g.id]?.relatado
+                                      );
+                                      return { ...item, gruposRelatados, relatado: todosFeitos };
+                                    }
+                                    return {
+                                      ...item,
+                                      relatado: true,
+                                      resumoRelatorio: "Baixa manual pelo Admin Master"
+                                    };
+                                  });
+
+                                  setListasMensais(prev => ({
+                                    ...prev,
+                                    [mesSelecionadoAdmin]: {
+                                      ...prev[mesSelecionadoAdmin],
+                                      dias: novosDias
+                                    }
+                                  }));
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] shadow-sm"
+                              >
+                                ✓ Dar Baixa Manual
+                              </button>
+                            </td>
+                          </tr>
+                        `;
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            `;
+          })()}
         </div>
       `}
     </div>

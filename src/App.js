@@ -258,7 +258,11 @@ function App() {
       setErroChaveRelatorio("");
     }
 
-    const dataHojeRelatorio = `${String(diaSelecionado).padStart(2, "0")}/06/2026`;
+    const dataHojeRelatorio = `${String(diaSelecionado).padStart(2, "0")}/${
+      mesVigenteId.split("-")[1] || "06"
+    }/${mesVigenteId.split("-")[0] || "2026"}`;
+
+    let resumoGerado = "";
 
     if (houveCampo === "Sim") {
       const concluidasHoje = Object.keys(quadrasMarcadas)
@@ -269,7 +273,20 @@ function App() {
         q => quadrasMarcadas[q].status === "parcial"
       );
 
-      // 1. Salva no Banco de Dados qualquer nova Casa Restrita adicionada neste formulário!
+      const partesResumo = [];
+      if (concluidasHoje.length > 0) {
+        partesResumo.push(`Concluídas: Qd ${concluidasHoje.join(", ")}`);
+      }
+      if (parciaisHoje.length > 0) {
+        partesResumo.push(`Parciais: Qd ${parciaisHoje.join(", ")}`);
+      }
+      if (obsRelatorio.trim()) {
+        partesResumo.push(`Obs: ${obsRelatorio.trim()}`);
+      }
+      resumoGerado =
+        partesResumo.length > 0 ? partesResumo.join(" | ") : "Campo realizado (sem quadras marcadas)";
+
+      // 1. Salva no Banco de Dados qualquer nova Casa Restrita adicionada neste formulário
       if (novasRestricoes.length > 0) {
         novasRestricoes.forEach(nr => {
           if (nr.rua.trim() && nr.numero.trim()) {
@@ -318,11 +335,62 @@ function App() {
           };
         })
       );
+    } else {
+      resumoGerado = `Não houve campo: ${motivoNaoHouve.trim() || "Imprevisto/Chuva"}`;
     }
+
+    // 3. Marca o dia (ou grupo de domingo) como RELATADO na lista mensal para tirar das pendências!
+    setListasMensais(prev => {
+      const listaAtual = prev[mesVigenteId];
+      if (!listaAtual) return prev;
+
+      const novosDias = listaAtual.dias.map(item => {
+        if (item.dia !== diaSelecionado) return item;
+
+        if (isDiaDeGrupos) {
+          const gruposRelatados = {
+            ...(item.gruposRelatados || {}),
+            [grupoAtivo.id]: {
+              relatado: true,
+              por: usuarioQuePreencheu?.nome || grupoAtivo.anciao,
+              data: dataHojeRelatorio,
+              resumo: resumoGerado
+            }
+          };
+          const todosGruposFeitos = grupos.every(g => gruposRelatados[g.id]?.relatado);
+          return {
+            ...item,
+            gruposRelatados,
+            relatado: todosGruposFeitos
+          };
+        }
+
+        if (item.id === saidaBase?.id) {
+          return {
+            ...item,
+            relatado: true,
+            relatadoPor: usuarioQuePreencheu?.nome || item.dirigente,
+            dataRelato: dataHojeRelatorio,
+            resumoRelatorio: resumoGerado
+          };
+        }
+
+        return item;
+      });
+
+      return {
+        ...prev,
+        [mesVigenteId]: {
+          ...listaAtual,
+          dias: novosDias
+        }
+      };
+    });
 
     setShowReportModal(false);
     setQuadrasMarcadas({});
     setObsRelatorio("");
+    setMotivoNaoHouve("");
     setNovasRestricoes([]);
     setChaveRelatorioInput("");
     setErroChaveRelatorio("");
@@ -460,6 +528,16 @@ function App() {
             mesVigenteInfo=${listasMensais[mesVigenteId]}
             programacaoVigente=${programacaoVigente}
             saidas=${saidas}
+            grupos=${grupos}
+            diaReferencia=${diaSelecionado}
+            onPreencherPendencia=${(diaAlvo, grupoIdOpcional) => {
+              setDiaSelecionado(diaAlvo);
+              if (grupoIdOpcional) {
+                setGrupoSelecionadoId(grupoIdOpcional);
+              }
+              setActiveTab("home");
+              setShowReportModal(true);
+            }}
             onChangeConfirmacao=${(id, status) => {
               const novos = programacaoVigente.map(d =>
                 d.id === id ? { ...d, confirmacao: status } : d
