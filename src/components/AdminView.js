@@ -40,6 +40,262 @@ export function AdminView({
   const [diaCortePendencia, setDiaCortePendencia] = useState(12);
   const [filtroDirigentePendencia, setFiltroDirigentePendencia] = useState("TODOS");
   const [msgCopiadaId, setMsgCopiadaId] = useState(null);
+// ESTADOS DO LABORATÓRIO DE POLÍGONOS COM VÉRTICES LIVRES E ARRASTE TOTAL
+  const [modoLabMapa, setModoLabMapa] = useState("mapear"); // "mapear" ou "simular"
+  const [quadraAtivaLab, setQuadraAtivaLab] = useState(1);
+  const [imagemLabIdx, setImagemLabIdx] = useState(0);
+  const [desenhandoCaixa, setDesenhandoCaixa] = useState(null); // { startX, startY, curX, curY }
+  const [arrastandoVertice, setArrastandoVertice] = useState(null); // { qNum, idx }
+  const [arrastandoPoligono, setArrastandoPoligono] = useState(null); // { qNum, startX, startY, initialPts }
+
+  const calcularPorcentagemMouse = (e, container) => {
+    const rect = container.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
+  };
+
+  // Garante compatibilidade com formatos anteriores
+  const obterVerticesQuadra = pos => {
+    if (!pos) return null;
+    if (Array.isArray(pos.pts) && pos.pts.length >= 3) return pos.pts;
+    const x = pos.x ?? 10;
+    const y = pos.y ?? 10;
+    const w = pos.w ?? 6;
+    const h = pos.h ?? 6;
+    return [
+      { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) },
+      { x: Number((x + w).toFixed(1)), y: Number(y.toFixed(1)) },
+      { x: Number((x + w).toFixed(1)), y: Number((y + h).toFixed(1)) },
+      { x: Number(x.toFixed(1)), y: Number((y + h).toFixed(1)) }
+    ];
+  };
+
+  // 1. Inicia o desenho de uma nova caixa ao clicar e arrastar em área livre do mapa
+  const handleMouseDownMapaLab = e => {
+    if (modoLabMapa !== "mapear" || arrastandoVertice || arrastandoPoligono) return;
+    e.preventDefault();
+    const pos = calcularPorcentagemMouse(e, e.currentTarget);
+    setDesenhandoCaixa({
+      startX: pos.x,
+      startY: pos.y,
+      curX: pos.x,
+      curY: pos.y
+    });
+  };
+
+  // Inicia o movimento da quadra inteira (ponteiro de 4 setas)
+  const handleIniciarArrastePoligono = (e, qNum, pts) => {
+    e.stopPropagation();
+    if (modoLabMapa !== "mapear") {
+      handleToquePinoSimulacao(e, qNum);
+      return;
+    }
+    e.preventDefault();
+    setQuadraAtivaLab(Number(qNum));
+    const container = e.currentTarget.closest("[data-map-container='true']");
+    if (!container) return;
+    const pos = calcularPorcentagemMouse(e, container);
+    setArrastandoPoligono({
+      qNum: Number(qNum),
+      startX: pos.x,
+      startY: pos.y,
+      initialPts: pts.map(p => ({ ...p }))
+    });
+  };
+
+  // 2. Move 1 vértice individual, OU move a quadra inteira, OU expande a caixa nova
+  const handleMouseMoveMapaLab = e => {
+    if (modoLabMapa !== "mapear") return;
+
+    // A) Movendo 1 vértice (ponteiro normal)
+    if (arrastandoVertice) {
+      const pos = calcularPorcentagemMouse(e, e.currentTarget);
+      const { qNum, idx } = arrastandoVertice;
+      setTerritorios(prev =>
+        prev.map(t => {
+          if (t.numero !== territorioEmEdicao.numero) return t;
+          const coordsAtuais = { ...(t.coordenadasQuadras || {}) };
+          const itemAtual = coordsAtuais[qNum];
+          const ptsAtuais = obterVerticesQuadra(itemAtual);
+          if (!ptsAtuais) return t;
+          const novosPts = ptsAtuais.map((pt, i) => (i === idx ? pos : pt));
+          coordsAtuais[qNum] = {
+            ...itemAtual,
+            pts: novosPts,
+            imgIdx: itemAtual?.imgIdx || 0
+          };
+          return { ...t, coordenadasQuadras: coordsAtuais };
+        })
+      );
+      return;
+    }
+
+    // B) Movendo a quadra inteira de uma vez (ponteiro de 4 setas)
+    if (arrastandoPoligono) {
+      const pos = calcularPorcentagemMouse(e, e.currentTarget);
+      const dx = pos.x - arrastandoPoligono.startX;
+      const dy = pos.y - arrastandoPoligono.startY;
+      const { qNum, initialPts } = arrastandoPoligono;
+
+      setTerritorios(prev =>
+        prev.map(t => {
+          if (t.numero !== territorioEmEdicao.numero) return t;
+          const coordsAtuais = { ...(t.coordenadasQuadras || {}) };
+          const itemAtual = coordsAtuais[qNum];
+          const novosPts = initialPts.map(pt => ({
+            x: Number(Math.max(0, Math.min(100, pt.x + dx)).toFixed(1)),
+            y: Number(Math.max(0, Math.min(100, pt.y + dy)).toFixed(1))
+          }));
+          coordsAtuais[qNum] = {
+            ...itemAtual,
+            pts: novosPts,
+            imgIdx: itemAtual?.imgIdx || 0
+          };
+          return { ...t, coordenadasQuadras: coordsAtuais };
+        })
+      );
+      return;
+    }
+
+    // C) Puxando caixa nova
+    if (desenhandoCaixa) {
+      const pos = calcularPorcentagemMouse(e, e.currentTarget);
+      setDesenhandoCaixa(prev => (prev ? { ...prev, curX: pos.x, curY: pos.y } : null));
+    }
+  };
+
+  // 3. Solta o mouse: finaliza arraste de vértice, arraste da quadra toda ou criação da caixa
+  const handleMouseUpMapaLab = () => {
+    if (arrastandoVertice) {
+      setArrastandoVertice(null);
+      return;
+    }
+    if (arrastandoPoligono) {
+      setArrastandoPoligono(null);
+      return;
+    }
+
+    if (!desenhandoCaixa || modoLabMapa !== "mapear") return;
+
+    const left = Math.min(desenhandoCaixa.startX, desenhandoCaixa.curX);
+    const top = Math.min(desenhandoCaixa.startY, desenhandoCaixa.curY);
+    const width = Math.abs(desenhandoCaixa.curX - desenhandoCaixa.startX);
+    const height = Math.abs(desenhandoCaixa.curY - desenhandoCaixa.startY);
+
+    if (width < 1.2 && height < 1.2) {
+      setDesenhandoCaixa(null);
+      return;
+    }
+
+    const x1 = Number(left.toFixed(1));
+    const y1 = Number(top.toFixed(1));
+    const x2 = Number((left + width).toFixed(1));
+    const y2 = Number((top + height).toFixed(1));
+
+    const qAtual = Number(quadraAtivaLab);
+
+    setTerritorios(prev =>
+      prev.map(t => {
+        if (t.numero !== territorioEmEdicao.numero) return t;
+        const coordsAtuais = { ...(t.coordenadasQuadras || {}) };
+        coordsAtuais[qAtual] = {
+          pts: [
+            { x: x1, y: y1 },
+            { x: x2, y: y1 },
+            { x: x2, y: y2 },
+            { x: x1, y: y2 }
+          ],
+          imgIdx: imagemLabIdx
+        };
+        return { ...t, coordenadasQuadras: coordsAtuais };
+      })
+    );
+
+    setDesenhandoCaixa(null);
+  };
+
+  // Insere um novo vértice exatamente no meio de uma aresta específica (ou no final)
+  const handleInserirVerticeNaAresta = (qNum, arestaIdx = null) => {
+    setTerritorios(prev =>
+      prev.map(t => {
+        if (t.numero !== territorioEmEdicao.numero) return t;
+        const coords = { ...(t.coordenadasQuadras || {}) };
+        const pts = obterVerticesQuadra(coords[qNum]);
+        if (!pts || pts.length === 0) return t;
+
+        const idxA = arestaIdx !== null ? arestaIdx : pts.length - 1;
+        const idxB = (idxA + 1) % pts.length;
+        const pA = pts[idxA];
+        const pB = pts[idxB];
+        const novoPonto = {
+          x: Number(((pA.x + pB.x) / 2).toFixed(1)),
+          y: Number(((pA.y + pB.y) / 2).toFixed(1))
+        };
+
+        const novosPts = [...pts];
+        novosPts.splice(idxA + 1, 0, novoPonto);
+        coords[qNum] = { ...coords[qNum], pts: novosPts };
+        return { ...t, coordenadasQuadras: coords };
+      })
+    );
+  };
+
+  // Remove um vértice específico (no duplo clique) ou o último vértice (mínimo 3 lados)
+  const handleRemoverVerticeQuadra = (qNum, idxRemover = null) => {
+    setTerritorios(prev =>
+      prev.map(t => {
+        if (t.numero !== territorioEmEdicao.numero) return t;
+        const coords = { ...(t.coordenadasQuadras || {}) };
+        const pts = obterVerticesQuadra(coords[qNum]);
+        if (!pts || pts.length <= 3) return t;
+        const novosPts =
+          idxRemover !== null
+            ? pts.filter((_, i) => i !== idxRemover)
+            : pts.slice(0, -1);
+        coords[qNum] = { ...coords[qNum], pts: novosPts };
+        return { ...t, coordenadasQuadras: coords };
+      })
+    );
+  };
+
+  // No modo "Simular Dirigente", tocar na quadra alterna a cor de status
+  const handleToquePinoSimulacao = (e, qNum) => {
+    e.stopPropagation();
+    if (modoLabMapa === "mapear") {
+      setQuadraAtivaLab(Number(qNum));
+      return;
+    }
+
+    setTerritorios(prev =>
+      prev.map(t => {
+        if (t.numero !== territorioEmEdicao.numero) return t;
+        const isSemMorador = Boolean(t.semMoradores?.[qNum]);
+        if (isSemMorador) return t;
+
+        const jaVerde = t.trabalhadas.includes(Number(qNum));
+        const jaAmarela = Boolean(t.parciais?.[qNum]);
+
+        let novasTrabalhadas = [...t.trabalhadas];
+        const novasParciais = { ...(t.parciais || {}) };
+
+        if (!jaVerde && !jaAmarela) {
+          novasTrabalhadas.push(Number(qNum));
+        } else if (jaVerde) {
+          novasTrabalhadas = novasTrabalhadas.filter(x => x !== Number(qNum));
+          novasParciais[qNum] = "Simulação de quadra parcial";
+        } else {
+          delete novasParciais[qNum];
+        }
+
+        return {
+          ...t,
+          trabalhadas: novasTrabalhadas.sort((a, b) => a - b),
+          parciais: novasParciais
+        };
+      })
+    );
+  };
 
   // Estado para criar um Novo Mapa do zero
   const [novoMapaForm, setNovoMapaForm] = useState({
@@ -903,6 +1159,434 @@ export function AdminView({
                     })}
                   </div>
                 `}
+          </div>
+
+<!-- 🧪 LABORATÓRIO ISOLADO: POLÍGONOS COM EDIÇÃO LIVRE DE VÉRTICES E ARRASTE TOTAL -->
+          <div className="border-t pt-5 space-y-4">
+            <div className="bg-indigo-950 text-white p-4 rounded-xl shadow-md space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="bg-amber-400 text-amber-950 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded">
+                    Editor Vetorial de Territórios
+                  </span>
+                  <h4 className="font-extrabold text-sm sm:text-base mt-1">
+                    📐 Demarcar Quadras com Vértices Livres e Arraste Total (Mapa ${territorioEmEdicao.numero})
+                  </h4>
+                  <p className="text-xs text-indigo-200">
+                    Linhas finas tracejadas e fundo transparente na edição para total visibilidade do mapa embaixo.
+                  </p>
+                </div>
+
+                <!-- Chave Alternadora: Modo Editar Vértices vs Modo Simular Visão do Usuário -->
+                <div className="flex bg-indigo-900 p-1 rounded-xl border border-indigo-700 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick=${() => setModoLabMapa("mapear")}
+                    className=${`px-3 py-1.5 rounded-lg transition ${
+                      modoLabMapa === "mapear"
+                        ? "bg-amber-400 text-amber-950 shadow"
+                        : "text-indigo-200 hover:text-white"
+                    }`}
+                  >
+                    📐 1. Modo Edição do Mapa (Limpo)
+                  </button>
+                  <button
+                    type="button"
+                    onClick=${() => setModoLabMapa("simular")}
+                    className=${`px-3 py-1.5 rounded-lg transition ${
+                      modoLabMapa === "simular"
+                        ? "bg-emerald-500 text-white shadow"
+                        : "text-indigo-200 hover:text-white"
+                    }`}
+                  >
+                    👆 2. Ver Cores / Simular Usuário
+                  </button>
+                </div>
+              </div>
+
+              ${modoLabMapa === "mapear"
+                ? html`
+                    <div className="bg-indigo-900/90 border border-indigo-700 rounded-lg p-3 space-y-2.5 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-amber-300">
+                            Editando Quadra:
+                          </span>
+                          <button
+                            type="button"
+                            onClick=${() =>
+                              setQuadraAtivaLab(q => Math.max(1, Number(q) - 1))}
+                            className="bg-indigo-800 hover:bg-indigo-700 px-2.5 py-1.5 rounded-lg font-extrabold"
+                          >
+                            ◀
+                          </button>
+                          <select
+                            value=${quadraAtivaLab}
+                            onChange=${e => setQuadraAtivaLab(Number(e.target.value))}
+                            className="bg-white text-slate-900 font-extrabold px-3 py-1.5 rounded-lg"
+                          >
+                            ${Array.from(
+                              { length: territorioEmEdicao.totalQuadras },
+                              (_, i) => i + 1
+                            ).map(
+                              n => html`
+                                <option key=${n} value=${n}>
+                                  Quadra ${n} ${
+                                    territorioEmEdicao.coordenadasQuadras?.[n]
+                                      ? `✅ (${obterVerticesQuadra(territorioEmEdicao.coordenadasQuadras[n])?.length || 4} vértices)`
+                                      : "⏳"
+                                  }
+                                </option>
+                              `
+                            )}
+                          </select>
+                          <button
+                            type="button"
+                            onClick=${() =>
+                              setQuadraAtivaLab(q =>
+                                Math.min(territorioEmEdicao.totalQuadras, Number(q) + 1)
+                              )}
+                            className="bg-amber-400 hover:bg-amber-500 text-amber-950 px-3 py-1.5 rounded-lg font-extrabold shadow-sm"
+                          >
+                            Próxima Quadra ▶
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          ${territorioEmEdicao.coordenadasQuadras?.[quadraAtivaLab] && html`
+                            <button
+                              type="button"
+                              onClick=${() => handleInserirVerticeNaAresta(quadraAtivaLab, null)}
+                              className="bg-sky-500/30 hover:bg-sky-500/50 text-sky-100 border border-sky-400/50 px-2.5 py-1 rounded font-bold"
+                            >
+                              + Ponto de Vértice
+                            </button>
+                            <button
+                              type="button"
+                              onClick=${() => handleRemoverVerticeQuadra(quadraAtivaLab, null)}
+                              className="bg-indigo-800 hover:bg-indigo-700 text-indigo-100 border border-indigo-500 px-2.5 py-1 rounded font-bold"
+                            >
+                              - Remover Último Vértice
+                            </button>
+                            <button
+                              type="button"
+                              onClick=${() => {
+                                setTerritorios(prev =>
+                                  prev.map(t => {
+                                    if (t.numero !== territorioEmEdicao.numero) return t;
+                                    const copy = { ...(t.coordenadasQuadras || {}) };
+                                    delete copy[quadraAtivaLab];
+                                    return { ...t, coordenadasQuadras: copy };
+                                  })
+                                );
+                              }}
+                              className="bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-400/40 px-2.5 py-1 rounded font-bold"
+                            >
+                              Apagar Qd ${quadraAtivaLab}
+                            </button>
+                          `}
+                          <button
+                            type="button"
+                            onClick=${() => {
+                              if (
+                                window.confirm(
+                                  `Apagar todas as marcações desenhadas no Mapa ${territorioEmEdicao.numero}?`
+                                )
+                              ) {
+                                setTerritorios(prev =>
+                                  prev.map(t =>
+                                    t.numero === territorioEmEdicao.numero
+                                      ? { ...t, coordenadasQuadras: {} }
+                                      : t
+                                  )
+                                );
+                                setQuadraAtivaLab(1);
+                              }
+                            }}
+                            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded font-bold"
+                          >
+                            🧹 Limpar Todas
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-indigo-200 grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t border-indigo-800">
+                        <div>
+                          ✥ <strong>Mover quadra inteira:</strong> Arraste pelo <strong>interior da caixa</strong> ou pelo número (cursor de 4 setas).
+                        </div>
+                        <div>
+                          👆 <strong>Ajustar cantos:</strong> Arraste as <strong>bolinhas amarelas</strong> com o ponteiro normal (duplo clique remove o ponto).
+                        </div>
+                        <div>
+                          ➕ <strong>Mais vértices:</strong> Clique e puxe qualquer <strong>bolinha azul</strong> no meio da linha tracejada para criar um novo canto!
+                        </div>
+                      </div>
+                    </div>
+                  `
+                : html`
+                    <div className="bg-emerald-950/90 border border-emerald-700 rounded-lg p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span>
+                        ✨ <strong>Visualização do Usuário Ativa:</strong> Aqui aparecem as cores reais de status (<strong>Branca = Disponível, Verde = Concluída, Amarela = Parcial</strong>). Toque nas quadras para testar!
+                      </span>
+                      <span className="bg-emerald-800 px-2.5 py-1 rounded font-bold">
+                        Demarcadas: ${Object.keys(territorioEmEdicao.coordenadasQuadras || {}).length} de ${territorioEmEdicao.totalQuadras}
+                      </span>
+                    </div>
+                  `}
+            </div>
+
+            ${(territorioEmEdicao.imagens || []).length > 1 && html`
+              <div className="flex gap-2 text-xs font-bold">
+                ${territorioEmEdicao.imagens.map(
+                  (_, i) => html`
+                    <button
+                      key=${i}
+                      type="button"
+                      onClick=${() => setImagemLabIdx(i)}
+                      className=${`px-3 py-1.5 rounded-lg border ${
+                        imagemLabIdx === i
+                          ? "bg-[#1e3a5f] text-white border-[#1e3a5f]"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      Imagem Parte ${i + 1}
+                    </button>
+                  `
+                )}
+              </div>
+            `}
+
+            <!-- Área do Mapa com Camada SVG Vetorial -->
+            ${(() => {
+              const imgRaw =
+                territorioEmEdicao.imagens?.[imagemLabIdx] ||
+                territorioEmEdicao.imagens?.[0] ||
+                "";
+              if (!imgRaw) {
+                return html`
+                  <div className="p-6 text-center bg-slate-100 rounded-xl border text-xs text-slate-600">
+                    Envie uma imagem PNG/JPEG acima para testar o mapeamento interativo.
+                  </div>
+                `;
+              }
+              const isDataUrl = imgRaw.startsWith("data:image");
+              const idMatch = !isDataUrl && imgRaw.match(/id=([^&]+)/);
+              const imgSrc = idMatch
+                ? `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1200`
+                : imgRaw;
+
+              const coordsMapa = territorioEmEdicao.coordenadasQuadras || {};
+
+              return html`
+                <div className="bg-slate-900 rounded-xl p-2 sm:p-4 flex justify-center overflow-x-auto">
+                  <div
+                    data-map-container="true"
+                    onMouseDown=${handleMouseDownMapaLab}
+                    onMouseMove=${handleMouseMoveMapaLab}
+                    onMouseUp=${handleMouseUpMapaLab}
+                    onMouseLeave=${handleMouseUpMapaLab}
+                    className=${`relative inline-block select-none rounded-lg overflow-hidden shadow-2xl border-2 ${
+                      modoLabMapa === "mapear"
+                        ? "cursor-crosshair border-amber-400"
+                        : "cursor-pointer border-emerald-500"
+                    }`}
+                  >
+                    <img
+                      src=${imgSrc}
+                      alt="Mapa Interativo"
+                      draggable="false"
+                      className="max-h-[660px] w-auto block select-none pointer-events-none"
+                    />
+
+                    <!-- Camada SVG Vetorial -->
+                    <svg
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                    >
+                      ${Object.entries(coordsMapa)
+                        .filter(([, pos]) => (pos.imgIdx || 0) === imagemLabIdx)
+                        .map(([qNumStr, pos]) => {
+                          const qNum = Number(qNumStr);
+                          const pts = obterVerticesQuadra(pos);
+                          if (!pts) return null;
+
+                          const pointsStr = pts.map(p => `${p.x},${p.y}`).join(" ");
+                          const isSelecionada =
+                            modoLabMapa === "mapear" && Number(quadraAtivaLab) === qNum;
+
+                          // NO MODO EDIÇÃO ("mapear"): Ignora status (concluída/parcial) e usa linha tracejada fina e fundo quase transparente!
+                          if (modoLabMapa === "mapear") {
+                            return html`
+                              <polygon
+                                key=${`poly-edit-${qNum}`}
+                                points=${pointsStr}
+                                fill=${isSelecionada ? "rgba(251, 191, 36, 0.08)" : "rgba(30, 58, 95, 0.05)"}
+                                stroke=${isSelecionada ? "#f59e0b" : "#1e3a5f"}
+                                strokeWidth=${isSelecionada ? "0.22" : "0.16"}
+                                strokeDasharray=${isSelecionada ? "0.7, 0.5" : "0.5, 0.5"}
+                                onMouseDown=${e => handleIniciarArrastePoligono(e, qNum, pts)}
+                                className="pointer-events-auto cursor-move transition"
+                              />
+                            `;
+                          }
+
+                          // NO MODO SIMULAR USUÁRIO ("simular"): Mostra as cores de status reais!
+                          const isSemMorador = Boolean(territorioEmEdicao.semMoradores?.[qNum]);
+                          const isParcial =
+                            !isSemMorador && Boolean(territorioEmEdicao.parciais?.[qNum]);
+                          const isFeita =
+                            !isSemMorador &&
+                            !isParcial &&
+                            territorioEmEdicao.trabalhadas.includes(qNum);
+
+                          const fillColor = isSemMorador
+                            ? "rgba(100, 116, 139, 0.48)"
+                            : isParcial
+                            ? "rgba(251, 191, 36, 0.52)"
+                            : isFeita
+                            ? "rgba(16, 185, 129, 0.52)"
+                            : "rgba(255, 255, 255, 0.35)";
+
+                          const strokeColor = isSemMorador
+                            ? "#cbd5e1"
+                            : isParcial
+                            ? "#d97706"
+                            : isFeita
+                            ? "#059669"
+                            : "#1e3a5f";
+
+                          return html`
+                            <polygon
+                              key=${`poly-sim-${qNum}`}
+                              points=${pointsStr}
+                              fill=${fillColor}
+                              stroke="none"
+                              strokeWidth="0"
+                              strokeDasharray=${isSemMorador ? "0.8, 0.6" : "none"}
+                              onMouseDown=${e => e.stopPropagation()}
+                              onClick=${e => handleToquePinoSimulacao(e, qNum)}
+                              className="pointer-events-auto cursor-pointer transition hover:opacity-90"
+                            />
+                          `;
+                        })}
+                    </svg>
+
+                    <!-- Caixa Temporária enquanto está puxando uma quadra nova (bem fina e tracejada) -->
+                    ${desenhandoCaixa && html`
+                      <div
+                        style=${{
+                          left: `${Math.min(desenhandoCaixa.startX, desenhandoCaixa.curX)}%`,
+                          top: `${Math.min(desenhandoCaixa.startY, desenhandoCaixa.curY)}%`,
+                          width: `${Math.abs(desenhandoCaixa.curX - desenhandoCaixa.startX)}%`,
+                          height: `${Math.abs(desenhandoCaixa.curY - desenhandoCaixa.startY)}%`
+                        }}
+                        className="absolute border border-dashed border-amber-400 bg-amber-400/10 pointer-events-none flex items-center justify-center font-extrabold text-[11px] text-amber-950 rounded"
+                      >
+                        ${quadraAtivaLab}
+                      </div>
+                    `}
+
+                    <!-- Rótulo Central + Vértices (Ponteiro) + Pontos Médios nas Arestas -->
+                    ${Object.entries(coordsMapa)
+                      .filter(([, pos]) => (pos.imgIdx || 0) === imagemLabIdx)
+                      .map(([qNumStr, pos]) => {
+                        const qNum = Number(qNumStr);
+                        const pts = obterVerticesQuadra(pos);
+                        if (!pts) return null;
+
+                        const centerX = pts.reduce((acc, p) => acc + p.x, 0) / pts.length;
+                        const centerY = pts.reduce((acc, p) => acc + p.y, 0) / pts.length;
+                        const isSelecionada =
+                          modoLabMapa === "mapear" && Number(quadraAtivaLab) === qNum;
+
+                        return html`
+                          <${React.Fragment} key=${`ctrl-${qNum}`}>
+                           <!-- Número Central Puro (Sem quadradinho em volta e com fonte maior) -->
+                            <button
+                              type="button"
+                              onMouseDown=${e => handleIniciarArrastePoligono(e, qNum, pts)}
+                              style=${{
+                                left: `${centerX}%`,
+                                top: `${centerY}%`,
+                                transform: "translate(-50%, -50%)",
+                                textShadow: "0 0 4px #ffffff, 0 0 4px #ffffff, 0 1px 2px rgba(0,0,0,0.4)"
+                              }}
+                              title=${
+                                modoLabMapa === "mapear"
+                                  ? `Quadra ${qNum} — Segure e arraste para mover a quadra inteira`
+                                  : `Quadra ${qNum}`
+                              }
+                              className=${`absolute bg-transparent border-none p-0 text-base sm:text-lg font-black leading-none select-none transition-transform ${
+                                modoLabMapa === "mapear" ? "cursor-move" : "cursor-pointer hover:scale-125"
+                              } ${
+                                isSelecionada
+                                  ? "text-amber-600 scale-125 z-20"
+                                  : "text-slate-950 z-10"
+                              }`}
+                            >
+                              ${qNum}
+                            </button>
+
+                            <!-- Vértices da Quadra Selecionada (Cursor Ponteiro normal e bolinha discreta) -->
+                            ${isSelecionada &&
+                            pts.map(
+                              (pt, idx) => html`
+                                <div
+                                  key=${`vert-${qNum}-${idx}`}
+                                  onMouseDown=${e => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setArrastandoVertice({ qNum, idx });
+                                  }}
+                                  onDoubleClick=${e => {
+                                    e.stopPropagation();
+                                    handleRemoverVerticeQuadra(qNum, idx);
+                                  }}
+                                  style=${{
+                                    left: `${pt.x}%`,
+                                    top: `${pt.y}%`,
+                                    transform: "translate(-50%, -50%)"
+                                  }}
+                                  title=${`Vértice ${idx + 1} (Arraste com o ponteiro para ajustar | Duplo clique para remover)`}
+                                  className="absolute w-2.5 h-2.5 rounded-full bg-amber-400 border border-slate-900 shadow-sm cursor-pointer z-30 hover:scale-125 hover:bg-amber-300 transition-transform"
+                                />
+                              `
+                            )}
+
+                            <!-- Micro-pontos Azuis no meio de cada aresta: clique e puxe para criar mais vértices onde quiser! -->
+                            ${isSelecionada &&
+                            pts.map((pt, idx) => {
+                              const nextPt = pts[(idx + 1) % pts.length];
+                              const midX = Number(((pt.x + nextPt.x) / 2).toFixed(1));
+                              const midY = Number(((pt.y + nextPt.y) / 2).toFixed(1));
+
+                              return html`
+                                <div
+                                  key=${`mid-${qNum}-${idx}`}
+                                  onMouseDown=${e => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleInserirVerticeNaAresta(qNum, idx);
+                                    setArrastandoVertice({ qNum, idx: idx + 1 });
+                                  }}
+                                  style=${{
+                                    left: `${midX}%`,
+                                    top: `${midY}%`,
+                                    transform: "translate(-50%, -50%)"
+                                  }}
+                                  title="Clique e arraste para criar um novo vértice neste lado da quadra"
+                                  className="absolute w-2 h-2 rounded-full bg-sky-400/90 border border-white shadow-sm cursor-pointer z-20 hover:scale-150 hover:bg-sky-300 transition-transform"
+                                />
+                              `;
+                            })}
+                          </${React.Fragment}>
+                        `;
+                      })}
+                  </div>
+                </div>
+              `;
+            })()}
           </div>
 
           <!-- 3. Quadras Sem Moradores (Ex: [ ] UPA) -->
