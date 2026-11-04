@@ -40,13 +40,83 @@ export function AdminView({
   const [diaCortePendencia, setDiaCortePendencia] = useState(12);
   const [filtroDirigentePendencia, setFiltroDirigentePendencia] = useState("TODOS");
   const [msgCopiadaId, setMsgCopiadaId] = useState(null);
-// ESTADOS DO LABORATÓRIO DE POLÍGONOS COM VÉRTICES LIVRES E ARRASTE TOTAL
+
+  // ESTADOS DO LABORATÓRIO DE POLÍGONOS COM VÉRTICES LIVRES E ARRASTE TOTAL
   const [modoLabMapa, setModoLabMapa] = useState("mapear"); // "mapear" ou "simular"
   const [quadraAtivaLab, setQuadraAtivaLab] = useState(1);
   const [imagemLabIdx, setImagemLabIdx] = useState(0);
   const [desenhandoCaixa, setDesenhandoCaixa] = useState(null); // { startX, startY, curX, curY }
   const [arrastandoVertice, setArrastandoVertice] = useState(null); // { qNum, idx }
   const [arrastandoPoligono, setArrastandoPoligono] = useState(null); // { qNum, startX, startY, initialPts }
+
+  // Estado para criar um Novo Mapa do zero
+  const [novoMapaForm, setNovoMapaForm] = useState({
+    numero: "",
+    nome: "",
+    obsAnciao: "",
+    imagemUrl: ""
+  });
+
+  const [novaSaida, setNovaSaida] = useState({
+    nome: "",
+    endereco: "",
+    mapaLocal: "1",
+    quadraLocal: "1"
+  });
+
+  // Estado para criar um novo Grupo de Campo (Domingos)
+  const [modoSaidaGrupo, setModoSaidaGrupo] = useState("existente");
+  const [novoGrupo, setNovoGrupo] = useState({
+    nome: "",
+    mapa: "1",
+    anciao: usuarios[0]?.nome || "",
+    ajudante: usuarios[1]?.nome || "",
+    horario: "09:00",
+    saidaId: saidas[0]?.id || 1,
+    novaSaidaNome: "",
+    novaSaidaEndereco: "",
+    novaSaidaQuadra: "1"
+  });
+
+  // Estado para configurar um novo Território Particular
+  const [novoParticular, setNovoParticular] = useState({
+    usuarioNome:
+      usuarios.find(u => u.role === "Particular")?.nome || usuarios[0]?.nome || "",
+    mapa: "11",
+    quadrasTexto: "",
+    endereco: "",
+    imagemUrl: ""
+  });
+
+  // Estado para adicionar casa restrita dentro da aba de Territórios Particulares / Mapas
+  const [novaRestricaoMapa, setNovaRestricaoMapa] = useState({
+    mapa: "11",
+    rua: "",
+    numero: ""
+  });
+
+  // Estado para cadastrar novo Usuário
+  const [novoUsuario, setNovoUsuario] = useState({
+    nome: "",
+    email: "",
+    chave: "",
+    role: "Particular",
+    privilegio: "Publicador"
+  });
+
+  // Estado para adicionar um novo dia de Campo no Zoom
+  const [novoDiaZoom, setNovoDiaZoom] = useState({
+    dia: "1",
+    horario: zoomConfig?.horarioPadrao || "09:30",
+    dirigente: usuarios[0]?.nome || "Antônio Xavier",
+    link: zoomConfig?.linkPadrao || "https://zoom.us/j/1234567890"
+  });
+
+  const programacaoAdmin = listasMensais[mesSelecionadoAdmin]?.dias || [];
+  const territorioEmEdicao =
+    territorios.find(t => t.numero === mapaEditSelecionado) || territorios[0];
+
+  const hojeFormatado = new Date().toLocaleDateString("pt-BR");
 
   const calcularPorcentagemMouse = (e, container) => {
     const rect = container.getBoundingClientRect();
@@ -208,11 +278,21 @@ export function AdminView({
           ],
           imgIdx: imagemLabIdx
         };
-        return { ...t, coordenadasQuadras: coordsAtuais };
+        const novoTotal = Object.keys(coordsAtuais).length;
+        return {
+          ...t,
+          coordenadasQuadras: coordsAtuais,
+          totalQuadras: novoTotal
+        };
       })
     );
 
     setDesenhandoCaixa(null);
+    const qtdAposCriar = Object.keys({
+      ...(territorioEmEdicao.coordenadasQuadras || {}),
+      [qAtual]: true
+    }).length;
+    setQuadraAtivaLab(qtdAposCriar + 1);
   };
 
   // Insere um novo vértice exatamente no meio de uma aresta específica (ou no final)
@@ -297,76 +377,6 @@ export function AdminView({
     );
   };
 
-  // Estado para criar um Novo Mapa do zero
-  const [novoMapaForm, setNovoMapaForm] = useState({
-    numero: "",
-    nome: "",
-    totalQuadras: 30,
-    obsAnciao: "",
-    imagemUrl: ""
-  });
-
-  const [novaSaida, setNovaSaida] = useState({
-    nome: "",
-    endereco: "",
-    mapaLocal: "1",
-    quadraLocal: "1"
-  });
-
-  // Estado para criar um novo Grupo de Campo (Domingos)
-  const [modoSaidaGrupo, setModoSaidaGrupo] = useState("existente");
-  const [novoGrupo, setNovoGrupo] = useState({
-    nome: "",
-    mapa: "1",
-    anciao: usuarios[0]?.nome || "",
-    ajudante: usuarios[1]?.nome || "",
-    horario: "09:00",
-    saidaId: saidas[0]?.id || 1,
-    novaSaidaNome: "",
-    novaSaidaEndereco: "",
-    novaSaidaQuadra: "1"
-  });
-
-  // Estado para configurar um novo Território Particular
-  const [novoParticular, setNovoParticular] = useState({
-    usuarioNome:
-      usuarios.find(u => u.role === "Particular")?.nome || usuarios[0]?.nome || "",
-    mapa: "11",
-    quadrasTexto: "",
-    endereco: "",
-    imagemUrl: ""
-  });
-
-  // Estado para adicionar casa restrita dentro da aba de Territórios Particulares / Mapas
-  const [novaRestricaoMapa, setNovaRestricaoMapa] = useState({
-    mapa: "11",
-    rua: "",
-    numero: ""
-  });
-
-  // Estado para cadastrar novo Usuário
-  const [novoUsuario, setNovoUsuario] = useState({
-    nome: "",
-    email: "",
-    chave: "",
-    role: "Particular",
-    privilegio: "Publicador"
-  });
-
-  // Estado para adicionar um novo dia de Campo no Zoom
-  const [novoDiaZoom, setNovoDiaZoom] = useState({
-    dia: "1",
-    horario: zoomConfig?.horarioPadrao || "09:30",
-    dirigente: usuarios[0]?.nome || "Antônio Xavier",
-    link: zoomConfig?.linkPadrao || "https://zoom.us/j/1234567890"
-  });
-
-  const programacaoAdmin = listasMensais[mesSelecionadoAdmin]?.dias || [];
-  const territorioEmEdicao =
-    territorios.find(t => t.numero === mapaEditSelecionado) || territorios[0];
-
-  const hojeFormatado = new Date().toLocaleDateString("pt-BR");
-
   const adicionarTurnoNoDia = diaAlvo => {
     const novosDias = [...programacaoAdmin];
     const idx = novosDias.findIndex(d => d.id === diaAlvo.id);
@@ -424,7 +434,8 @@ export function AdminView({
     const novoTerr = {
       numero: novoMapaForm.numero.trim(),
       nome: novoMapaForm.nome.trim(),
-      totalQuadras: Number(novoMapaForm.totalQuadras) || 25,
+      totalQuadras: 0,
+      coordenadasQuadras: {},
       trabalhadas: [],
       parciais: {},
       semMoradores: {},
@@ -437,7 +448,8 @@ export function AdminView({
     };
     setTerritorios(prev => [...prev, novoTerr]);
     setMapaEditSelecionado(novoTerr.numero);
-    setNovoMapaForm({ numero: "", nome: "", totalQuadras: 30, obsAnciao: "", imagemUrl: "" });
+    setQuadraAtivaLab(1);
+    setNovoMapaForm({ numero: "", nome: "", obsAnciao: "", imagemUrl: "" });
   };
 
   const lerEComprimirImagem = file => {
@@ -619,6 +631,13 @@ export function AdminView({
       privilegio: "Publicador"
     });
   };
+
+  const totalQuadrasDisponiveis = Math.max(
+    1,
+    Object.keys(territorioEmEdicao.coordenadasQuadras || {}).length ||
+      territorioEmEdicao.totalQuadras ||
+      1
+  );
 
   return html`
     <div className="space-y-4">
@@ -947,7 +966,7 @@ export function AdminView({
                 🗺️ Edição de Territórios, Upload de Mapas (PNG/JPEG) e Quadras
               </h3>
               <p className="text-xs text-slate-500">
-                Gerencie os dados do território, faça upload das imagens do mapa em PNG ou JPEG e configure quadras sem moradores.
+                Gerencie os dados do território, faça upload das imagens do mapa em PNG ou JPEG e demarque as quadras no editor vetorial.
               </p>
             </div>
             <div className="flex items-center gap-2 text-xs">
@@ -957,6 +976,7 @@ export function AdminView({
                 onChange=${e => {
                   setMapaEditSelecionado(e.target.value);
                   setQuadraSemMoradorNum("1");
+                  setQuadraAtivaLab(1);
                 }}
                 className="border-2 border-[#1e3a5f] rounded-lg px-3 py-1.5 font-bold text-[#1e3a5f] bg-blue-50/40"
               >
@@ -1009,24 +1029,23 @@ export function AdminView({
                 className="w-full border rounded-lg px-2.5 py-2 font-semibold bg-white"
               />
             </div>
+
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Quantidade Total de Quadras:</label>
-              <input
-                type="number"
-                min="1"
-                max="150"
-                value=${territorioEmEdicao.totalQuadras}
-                onChange=${e => {
-                  const val = Number(e.target.value) || 1;
-                  setTerritorios(prev =>
-                    prev.map(t =>
-                      t.numero === territorioEmEdicao.numero ? { ...t, totalQuadras: val } : t
-                    )
-                  );
-                }}
-                className="w-full border rounded-lg px-2.5 py-2 font-semibold bg-white"
-              />
+              <label className="font-bold text-slate-700 block mb-1">
+                Total de Quadras (Automático pelo Mapa):
+              </label>
+              <div className="w-full border rounded-lg px-3 py-2 font-extrabold bg-slate-100 text-[#1e3a5f] flex items-center justify-between">
+                <span>
+                  ${Object.keys(territorioEmEdicao.coordenadasQuadras || {}).length > 0
+                    ? `${Object.keys(territorioEmEdicao.coordenadasQuadras).length} quadras desenhadas`
+                    : `${territorioEmEdicao.totalQuadras || 0} quadras`}
+                </span>
+                <span className="text-[10px] bg-blue-100 text-blue-900 px-2 py-0.5 rounded font-bold">
+                  Automático
+                </span>
+              </div>
             </div>
+
             <div>
               <label className="font-bold text-slate-700 block mb-1">
                 Observação Fixa do Ancião / Servo:
@@ -1114,7 +1133,6 @@ export function AdminView({
                             </div>
 
                             <div className="flex items-center gap-1.5">
-                              <!-- Botão para Substituir esta imagem específica por outro PNG/JPEG -->
                               <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded font-bold text-[11px]">
                                 🔄 Substituir PNG/JPEG
                                 <input
@@ -1125,7 +1143,6 @@ export function AdminView({
                                 />
                               </label>
 
-                              <!-- Botão para Excluir esta imagem -->
                               <button
                                 type="button"
                                 onClick=${() => {
@@ -1161,7 +1178,7 @@ export function AdminView({
                 `}
           </div>
 
-<!-- 🧪 LABORATÓRIO ISOLADO: POLÍGONOS COM EDIÇÃO LIVRE DE VÉRTICES E ARRASTE TOTAL -->
+          <!-- 🧪 LABORATÓRIO ISOLADO: POLÍGONOS COM EDIÇÃO LIVRE DE VÉRTICES E ARRASTE TOTAL -->
           <div className="border-t pt-5 space-y-4">
             <div className="bg-indigo-950 text-white p-4 rounded-xl shadow-md space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1208,49 +1225,54 @@ export function AdminView({
                 ? html`
                     <div className="bg-indigo-900/90 border border-indigo-700 rounded-lg p-3 space-y-2.5 text-xs">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-amber-300">
-                            Editando Quadra:
-                          </span>
-                          <button
-                            type="button"
-                            onClick=${() =>
-                              setQuadraAtivaLab(q => Math.max(1, Number(q) - 1))}
-                            className="bg-indigo-800 hover:bg-indigo-700 px-2.5 py-1.5 rounded-lg font-extrabold"
-                          >
-                            ◀
-                          </button>
-                          <select
-                            value=${quadraAtivaLab}
-                            onChange=${e => setQuadraAtivaLab(Number(e.target.value))}
-                            className="bg-white text-slate-900 font-extrabold px-3 py-1.5 rounded-lg"
-                          >
-                            ${Array.from(
-                              { length: territorioEmEdicao.totalQuadras },
-                              (_, i) => i + 1
-                            ).map(
-                              n => html`
-                                <option key=${n} value=${n}>
-                                  Quadra ${n} ${
-                                    territorioEmEdicao.coordenadasQuadras?.[n]
-                                      ? `✅ (${obterVerticesQuadra(territorioEmEdicao.coordenadasQuadras[n])?.length || 4} vértices)`
-                                      : "⏳"
-                                  }
-                                </option>
-                              `
-                            )}
-                          </select>
-                          <button
-                            type="button"
-                            onClick=${() =>
-                              setQuadraAtivaLab(q =>
-                                Math.min(territorioEmEdicao.totalQuadras, Number(q) + 1)
-                              )}
-                            className="bg-amber-400 hover:bg-amber-500 text-amber-950 px-3 py-1.5 rounded-lg font-extrabold shadow-sm"
-                          >
-                            Próxima Quadra ▶
-                          </button>
-                        </div>
+                        ${(() => {
+                          const qtdDesenhadas = Object.keys(
+                            territorioEmEdicao.coordenadasQuadras || {}
+                          ).length;
+                          const opcoesQuadras = Array.from(
+                            { length: qtdDesenhadas + 1 },
+                            (_, i) => i + 1
+                          );
+
+                          return html`
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-amber-300">
+                                Quadra no Editor:
+                              </span>
+                              <button
+                                type="button"
+                                onClick=${() =>
+                                  setQuadraAtivaLab(q => Math.max(1, Number(q) - 1))}
+                                className="bg-indigo-800 hover:bg-indigo-700 px-2.5 py-1.5 rounded-lg font-extrabold"
+                              >
+                                ◀
+                              </button>
+                              <select
+                                value=${quadraAtivaLab}
+                                onChange=${e => setQuadraAtivaLab(Number(e.target.value))}
+                                className="bg-white text-slate-900 font-extrabold px-3 py-1.5 rounded-lg"
+                              >
+                                ${opcoesQuadras.map(
+                                  n => html`
+                                    <option key=${n} value=${n}>
+                                      ${territorioEmEdicao.coordenadasQuadras?.[n]
+                                        ? `Quadra ${n} ✅ (${obterVerticesQuadra(territorioEmEdicao.coordenadasQuadras[n])?.length || 4} vértices)`
+                                        : `➕ Desenhar Nova Quadra ${n}`}
+                                    </option>
+                                  `
+                                )}
+                              </select>
+                              <button
+                                type="button"
+                                onClick=${() =>
+                                  setQuadraAtivaLab(qtdDesenhadas + 1)}
+                                className="bg-amber-400 hover:bg-amber-500 text-amber-950 px-3 py-1.5 rounded-lg font-extrabold shadow-sm"
+                              >
+                                + Nova Quadra (${qtdDesenhadas + 1})
+                              </button>
+                            </div>
+                          `;
+                        })()}
 
                         <div className="flex flex-wrap items-center gap-2">
                           ${territorioEmEdicao.coordenadasQuadras?.[quadraAtivaLab] && html`
@@ -1276,9 +1298,22 @@ export function AdminView({
                                     if (t.numero !== territorioEmEdicao.numero) return t;
                                     const copy = { ...(t.coordenadasQuadras || {}) };
                                     delete copy[quadraAtivaLab];
-                                    return { ...t, coordenadasQuadras: copy };
+                                    const valoresOrdenados = Object.keys(copy)
+                                      .map(Number)
+                                      .sort((a, b) => a - b)
+                                      .map(k => copy[k]);
+                                    const renumerado = {};
+                                    valoresOrdenados.forEach((val, idx) => {
+                                      renumerado[idx + 1] = val;
+                                    });
+                                    return {
+                                      ...t,
+                                      coordenadasQuadras: renumerado,
+                                      totalQuadras: valoresOrdenados.length
+                                    };
                                   })
                                 );
+                                setQuadraAtivaLab(1);
                               }}
                               className="bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-400/40 px-2.5 py-1 rounded font-bold"
                             >
@@ -1290,13 +1325,13 @@ export function AdminView({
                             onClick=${() => {
                               if (
                                 window.confirm(
-                                  `Apagar todas as marcações desenhadas no Mapa ${territorioEmEdicao.numero}?`
+                                  `Apagar todas as quadras desenhadas no Mapa ${territorioEmEdicao.numero}?`
                                 )
                               ) {
                                 setTerritorios(prev =>
                                   prev.map(t =>
                                     t.numero === territorioEmEdicao.numero
-                                      ? { ...t, coordenadasQuadras: {} }
+                                      ? { ...t, coordenadasQuadras: {}, totalQuadras: 0 }
                                       : t
                                   )
                                 );
@@ -1329,7 +1364,7 @@ export function AdminView({
                         ✨ <strong>Visualização do Usuário Ativa:</strong> Aqui aparecem as cores reais de status (<strong>Branca = Disponível, Verde = Concluída, Amarela = Parcial</strong>). Toque nas quadras para testar!
                       </span>
                       <span className="bg-emerald-800 px-2.5 py-1 rounded font-bold">
-                        Demarcadas: ${Object.keys(territorioEmEdicao.coordenadasQuadras || {}).length} de ${territorioEmEdicao.totalQuadras}
+                        Demarcadas: ${Object.keys(territorioEmEdicao.coordenadasQuadras || {}).length} quadras
                       </span>
                     </div>
                   `}
@@ -1415,7 +1450,7 @@ export function AdminView({
                           const isSelecionada =
                             modoLabMapa === "mapear" && Number(quadraAtivaLab) === qNum;
 
-                          // NO MODO EDIÇÃO ("mapear"): Ignora status (concluída/parcial) e usa linha tracejada fina e fundo quase transparente!
+                          // NO MODO EDIÇÃO ("mapear"): Ignora status e usa linha tracejada fina e fundo transparente
                           if (modoLabMapa === "mapear") {
                             return html`
                               <polygon
@@ -1431,7 +1466,7 @@ export function AdminView({
                             `;
                           }
 
-                          // NO MODO SIMULAR USUÁRIO ("simular"): Mostra as cores de status reais!
+                          // NO MODO SIMULAR USUÁRIO ("simular"): Mostra as cores de status sem linha de borda
                           const isSemMorador = Boolean(territorioEmEdicao.semMoradores?.[qNum]);
                           const isParcial =
                             !isSemMorador && Boolean(territorioEmEdicao.parciais?.[qNum]);
@@ -1448,14 +1483,6 @@ export function AdminView({
                             ? "rgba(16, 185, 129, 0.52)"
                             : "rgba(255, 255, 255, 0.35)";
 
-                          const strokeColor = isSemMorador
-                            ? "#cbd5e1"
-                            : isParcial
-                            ? "#d97706"
-                            : isFeita
-                            ? "#059669"
-                            : "#1e3a5f";
-
                           return html`
                             <polygon
                               key=${`poly-sim-${qNum}`}
@@ -1463,7 +1490,6 @@ export function AdminView({
                               fill=${fillColor}
                               stroke="none"
                               strokeWidth="0"
-                              strokeDasharray=${isSemMorador ? "0.8, 0.6" : "none"}
                               onMouseDown=${e => e.stopPropagation()}
                               onClick=${e => handleToquePinoSimulacao(e, qNum)}
                               className="pointer-events-auto cursor-pointer transition hover:opacity-90"
@@ -1472,7 +1498,7 @@ export function AdminView({
                         })}
                     </svg>
 
-                    <!-- Caixa Temporária enquanto está puxando uma quadra nova (bem fina e tracejada) -->
+                    <!-- Caixa Temporária enquanto está puxando uma quadra nova -->
                     ${desenhandoCaixa && html`
                       <div
                         style=${{
@@ -1502,7 +1528,7 @@ export function AdminView({
 
                         return html`
                           <${React.Fragment} key=${`ctrl-${qNum}`}>
-                           <!-- Número Central Puro (Sem quadradinho em volta e com fonte maior) -->
+                            <!-- Número Central Puro (Sem quadradinho em volta e com fonte maior) -->
                             <button
                               type="button"
                               onMouseDown=${e => handleIniciarArrastePoligono(e, qNum, pts)}
@@ -1554,7 +1580,7 @@ export function AdminView({
                               `
                             )}
 
-                            <!-- Micro-pontos Azuis no meio de cada aresta: clique e puxe para criar mais vértices onde quiser! -->
+                            <!-- Micro-pontos Azuis no meio de cada aresta -->
                             ${isSelecionada &&
                             pts.map((pt, idx) => {
                               const nextPt = pts[(idx + 1) % pts.length];
@@ -1611,7 +1637,7 @@ export function AdminView({
                   onChange=${e => setQuadraSemMoradorNum(e.target.value)}
                   className="w-full border rounded-lg px-2.5 py-2 font-bold bg-white"
                 >
-                  ${Array.from({ length: territorioEmEdicao.totalQuadras }, (_, i) => i + 1).map(
+                  ${Array.from({ length: totalQuadrasDisponiveis }, (_, i) => i + 1).map(
                     num => html`<option key=${num} value=${num}>Quadra ${num}</option>`
                   )}
                 </select>
@@ -1664,7 +1690,7 @@ export function AdminView({
                       >
                         <div>
                           <span className="font-extrabold text-[#1e3a5f]">Quadra ${qNum}:</span>
-                          <span className="text-slate-700 font-bold">${motivo}</span>
+                          <span className="text-slate-700 font-bold"> ${motivo}</span>
                         </div>
                         <button
                           type="button"
@@ -1714,20 +1740,7 @@ export function AdminView({
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="font-bold text-slate-700 block mb-1">Total Quadras:</label>
-                <input
-                  type="number"
-                  placeholder="30"
-                  value=${novoMapaForm.totalQuadras}
-                  onChange=${e =>
-                    setNovoMapaForm({ ...novoMapaForm, totalQuadras: e.target.value })}
-                  className="w-full border rounded-lg px-2.5 py-2 bg-white font-bold"
-                  required
-                />
-              </div>
-
-              <div className="sm:col-span-3">
+              <div className="sm:col-span-5">
                 <label className="font-bold text-slate-700 block mb-1">
                   Arquivo do Mapa (PNG / JPEG):
                 </label>
@@ -1759,7 +1772,7 @@ export function AdminView({
         </div>
       `}
 
-      <!-- SEÇÃO 3: CADASTRO DE SAÍDAS (COM CONFIGURAÇÃO E EDIÇÃO DE MAPA E QUADRA DA SAÍDA) -->
+      <!-- SEÇÃO 3: CADASTRO DE SAÍDAS -->
       ${adminSection === "saidas" && html`
         <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-5 space-y-5">
           <div className="border-b pb-3">
@@ -1771,7 +1784,6 @@ export function AdminView({
             </p>
           </div>
 
-          <!-- Formulário para Cadastrar Nova Saída com Rótulos Claros -->
           <form
             onSubmit=${e => {
               e.preventDefault();
@@ -1874,7 +1886,6 @@ export function AdminView({
             </div>
           </form>
 
-          <!-- Tabela Editável de Todas as Saídas Cadastradas -->
           <div className="space-y-2">
             <h4 className="font-extrabold text-sm text-[#1e3a5f]">
               Locais de Saída Cadastrados (${saidas.length}) — Edite o Mapa ou a Quadra diretamente abaixo:

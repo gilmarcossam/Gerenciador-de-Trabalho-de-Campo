@@ -677,106 +677,176 @@ function App() {
                   `
                 : html`
                     <!-- 2. Foto do Mapa visível dentro do Modal para lembrar onde foi feito -->
+                    <!-- 2. Mapa Vetorial Interativo e Clicável dentro do Modal de Preenchimento -->
                     <div className="bg-slate-50 border rounded-xl p-2.5 space-y-2">
-                      <span className="font-bold text-[#1e3a5f] block">
-                        🗺️ Imagem do Mapa ${territorioAtual.numero} (Para lembrar onde foi feito):
-                      </span>
-                      <div className="grid grid-cols-1 gap-2">
-                        ${territorioAtual.imagens.map((url, i) => {
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <span className="font-bold text-[#1e3a5f] block">
+                          🗺️ Toque direto nas quadras do Mapa ${territorioAtual.numero} para preencher:
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                          1 toque = Concluída • 2 toques = Parcial
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        ${territorioAtual.imagens.map((url, idxImg) => {
                           const isDataUrl = url.startsWith("data:image");
                           const idMatch = !isDataUrl && url.match(/id=([^&]+)/);
                           const thumbUrl = idMatch
-                            ? `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1000`
+                            ? `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1200`
                             : url;
+
+                          const coordsMapa = territorioAtual.coordenadasQuadras || {};
+                          const entradasDaImagem = Object.entries(coordsMapa).filter(
+                            ([, pos]) => (pos.imgIdx || 0) === idxImg
+                          );
+
+                          const obterVerticesModal = pos => {
+                            if (!pos) return null;
+                            if (Array.isArray(pos.pts) && pos.pts.length >= 3) return pos.pts;
+                            const x = pos.x ?? 10;
+                            const y = pos.y ?? 10;
+                            const w = pos.w ?? 6;
+                            const h = pos.h ?? 6;
+                            return [
+                              { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) },
+                              { x: Number((x + w).toFixed(1)), y: Number(y.toFixed(1)) },
+                              { x: Number((x + w).toFixed(1)), y: Number((y + h).toFixed(1)) },
+                              { x: Number(x.toFixed(1)), y: Number((y + h).toFixed(1)) }
+                            ];
+                          };
+
                           return html`
-                            <img
-                              key=${i}
-                              src=${thumbUrl}
-                              alt="Mapa referência"
-                              className="w-full max-h-60 object-contain bg-white rounded border"
-                            />
+                            <div
+                              key=${idxImg}
+                              className="bg-slate-900 rounded-lg p-1.5 flex justify-center overflow-x-auto"
+                            >
+                              <div className="relative inline-block select-none rounded overflow-hidden">
+                                <img
+                                  src=${thumbUrl}
+                                  alt="Mapa interativo para relatório"
+                                  draggable="false"
+                                  className="max-h-[420px] w-auto block select-none pointer-events-none"
+                                />
+
+                                <!-- Camada SVG Clicável das Quadras -->
+                                ${entradasDaImagem.length > 0 && html`
+                                  <svg
+                                    viewBox="0 0 100 100"
+                                    preserveAspectRatio="none"
+                                    className="absolute inset-0 w-full h-full pointer-events-none"
+                                  >
+                                    ${entradasDaImagem.map(([qNumStr, pos]) => {
+                                      const qNum = Number(qNumStr);
+                                      const pts = obterVerticesModal(pos);
+                                      if (!pts) return null;
+
+                                      const pointsStr = pts.map(p => `${p.x},${p.y}`).join(" ");
+                                      const motivoSemMorador =
+                                        territorioAtual.semMoradores?.[qNum] ||
+                                        territorioAtual.semMoradores?.[String(qNum)];
+                                      const isSemMorador = Boolean(motivoSemMorador);
+                                      const donoParticular = quadrasParticularesNoMapaAtual[qNum];
+                                      const isParticularAtivo =
+                                        !isSemMorador && Boolean(donoParticular);
+
+                                      const stHoje = quadrasMarcadas[qNum]?.status;
+                                      const eraParcial = Boolean(
+                                        territorioAtual.parciais?.[qNum] ||
+                                          territorioAtual.parciais?.[String(qNum)]
+                                      );
+                                      const jaFeitaAntes = territorioAtual.trabalhadas.includes(qNum);
+
+                                      const fillColor = isSemMorador
+                                        ? "rgba(100, 116, 139, 0.50)"
+                                        : isParticularAtivo
+                                        ? "rgba(147, 51, 234, 0.45)"
+                                        : stHoje === "concluida"
+                                        ? "rgba(5, 150, 105, 0.72)"
+                                        : stHoje === "parcial"
+                                        ? "rgba(245, 158, 11, 0.75)"
+                                        : eraParcial
+                                        ? "rgba(251, 191, 36, 0.45)"
+                                        : jaFeitaAntes
+                                        ? "rgba(16, 185, 129, 0.38)"
+                                        : "rgba(255, 255, 255, 0.30)";
+
+                                      return html`
+                                        <polygon
+                                          key=${`modal-poly-${qNum}`}
+                                          points=${pointsStr}
+                                          fill=${fillColor}
+                                          stroke=${
+                                            stHoje === "concluida"
+                                              ? "#ffffff"
+                                              : stHoje === "parcial"
+                                              ? "#fef08a"
+                                              : "none"
+                                          }
+                                          strokeWidth=${stHoje ? "0.35" : "0"}
+                                          onClick=${() => {
+                                            if (!isSemMorador && !isParticularAtivo) {
+                                              toggleQuadraForm(qNum);
+                                            }
+                                          }}
+                                          className=${`pointer-events-auto transition ${
+                                            isSemMorador || isParticularAtivo
+                                              ? "cursor-not-allowed"
+                                              : "cursor-pointer hover:opacity-90"
+                                          }`}
+                                        />
+                                      `;
+                                    })}
+                                  </svg>
+
+                                  <!-- Números Clicáveis no Centro de cada Polígono -->
+                                  ${entradasDaImagem.map(([qNumStr, pos]) => {
+                                    const qNum = Number(qNumStr);
+                                    const pts = obterVerticesModal(pos);
+                                    if (!pts) return null;
+
+                                    const centerX =
+                                      pts.reduce((acc, p) => acc + p.x, 0) / pts.length;
+                                    const centerY =
+                                      pts.reduce((acc, p) => acc + p.y, 0) / pts.length;
+
+                                    const motivoSemMorador =
+                                      territorioAtual.semMoradores?.[qNum] ||
+                                      territorioAtual.semMoradores?.[String(qNum)];
+                                    const isSemMorador = Boolean(motivoSemMorador);
+                                    const donoParticular = quadrasParticularesNoMapaAtual[qNum];
+                                    const isParticularAtivo =
+                                      !isSemMorador && Boolean(donoParticular);
+                                    const stHoje = quadrasMarcadas[qNum]?.status;
+
+                                    return html`
+                                      <button
+                                        key=${`modal-num-${qNum}`}
+                                        type="button"
+                                        disabled=${isSemMorador || isParticularAtivo}
+                                        onClick=${() => toggleQuadraForm(qNum)}
+                                        style=${{
+                                          left: `${centerX}%`,
+                                          top: `${centerY}%`,
+                                          transform: "translate(-50%, -50%)",
+                                          textShadow:
+                                            "0 0 4px #ffffff, 0 0 4px #ffffff, 0 1px 2px rgba(0,0,0,0.5)"
+                                        }}
+                                        className=${`absolute bg-transparent border-none p-0 text-sm sm:text-base font-black leading-none select-none transition-transform ${
+                                          isSemMorador || isParticularAtivo
+                                            ? "text-slate-600 cursor-not-allowed"
+                                            : "text-slate-950 cursor-pointer hover:scale-125"
+                                        } ${stHoje ? "scale-125" : ""}`}
+                                      >
+                                        ${qNum}
+                                      </button>
+                                    `;
+                                  })}
+                                `}
+                              </div>
+                            </div>
                           `;
                         })}
-                      </div>
-                    </div>
-
-                    <!-- 3. Grade Interativa de Quadras -->
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-800 block">
-                        Toque nas quadras trabalhadas hoje:
-                        <span className="block font-normal text-slate-600 mt-0.5">
-                          • <strong>1 toque</strong> = <span className="text-emerald-700 font-bold">Concluída (Verde)</span> |
-                          • <strong>2 toques</strong> = <span className="text-amber-700 font-bold">Parcial (Amarela)</span> |
-                          • Quadras com <strong>✓ Feita</strong> podem ser selecionadas novamente se foram retrabalhadas hoje.
-                        </span>
-                      </label>
-
-                      <div className="grid grid-cols-7 sm:grid-cols-9 gap-1.5 bg-slate-50 p-2.5 rounded-xl border">
-                        ${Array.from({ length: territorioAtual.totalQuadras }, (_, i) => i + 1).map(
-                          q => {
-                            const motivoSemMorador =
-                              territorioAtual.semMoradores?.[q] ||
-                              territorioAtual.semMoradores?.[String(q)];
-                            const isSemMorador = Boolean(motivoSemMorador);
-                            const donoParticular = quadrasParticularesNoMapaAtual[q];
-                            const isParticularAtivo = !isSemMorador && Boolean(donoParticular);
-
-                            const jaFeita = territorioAtual.trabalhadas.includes(q);
-                            const eraParcial = Boolean(
-                              territorioAtual.parciais?.[q] ||
-                                territorioAtual.parciais?.[String(q)]
-                            );
-                            const st = quadrasMarcadas[q]?.status;
-
-                            return html`
-                              <button
-                                type="button"
-                                key=${q}
-                                disabled=${isSemMorador || isParticularAtivo}
-                                title=${
-                                  isSemMorador
-                                    ? `${motivoSemMorador}`
-                                    : isParticularAtivo
-                                    ? `Reservada: ${donoParticular}`
-                                    : ""
-                                }
-                                onClick=${() => toggleQuadraForm(q)}
-                                className=${`py-1.5 px-1 rounded-lg font-bold border relative transition ${
-                                  isSemMorador
-                                    ? "bg-slate-200 text-slate-400 border-dashed border-slate-300 cursor-not-allowed"
-                                    : isParticularAtivo
-                                    ? "bg-purple-100 text-purple-800 border-dashed border-purple-400 cursor-not-allowed"
-                                    : st === "concluida"
-                                    ? "bg-emerald-600 text-white border-emerald-800 ring-2 ring-emerald-400 shadow"
-                                    : st === "parcial"
-                                    ? "bg-amber-400 text-amber-950 border-amber-600 ring-2 ring-amber-300 shadow"
-                                    : eraParcial
-                                    ? "bg-amber-100 text-amber-900 border-amber-400"
-                                    : jaFeita
-                                    ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                                    : "bg-white text-slate-800 border-slate-300 hover:bg-slate-100"
-                                }`}
-                              >
-                                ${q}
-                                ${isSemMorador && html`
-                                  <span className="block text-[8px] text-slate-500 leading-none truncate px-0.5">
-                                    ${motivoSemMorador}
-                                  </span>
-                                `}
-                                ${isParticularAtivo && html`
-                                  <span className="block text-[8px] text-purple-700 leading-none truncate px-0.5">
-                                    Particular
-                                  </span>
-                                `}
-                                ${!isSemMorador && !isParticularAtivo && jaFeita && !st && html`
-                                  <span className="block text-[9px] text-emerald-700 leading-none">
-                                    ✓ Feita
-                                  </span>
-                                `}
-                              </button>
-                            `;
-                          }
-                        )}
                       </div>
                     </div>
 
